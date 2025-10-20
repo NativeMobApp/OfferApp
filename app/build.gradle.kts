@@ -1,15 +1,19 @@
 plugins {
-    alias(libs.plugins.android.application)
+    //alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+
+    id("com.android.application")
+    //se agrega los servicioes de gradle plugin
+    id("com.google.gms.google-services")
 }
 
 android {
-    namespace = "com.example.myapplication"
+    namespace = "com.example.OfferApp"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.myapplication"
+        applicationId = "com.example.OfferApp"
         minSdk = 28
         targetSdk = 36
         versionCode = 1
@@ -40,6 +44,16 @@ android {
 }
 
 dependencies {
+    //Importando el firebase Bom
+    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
+
+    implementation("com.google.firebase:firebase-auth")
+
+    //HACER:
+    implementation("com.google.firebase:firebase-analytics")
+
+    implementation("androidx.navigation:navigation-compose:2.8.3")
+
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
