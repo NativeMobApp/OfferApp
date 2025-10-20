@@ -1,4 +1,4 @@
-package com.example.OfferApp.data.fireBase
+package com.example.OfferApp.data.firebase
 
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await

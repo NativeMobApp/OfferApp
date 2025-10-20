@@ -5,14 +5,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.OfferApp.view.home.HomeScreen
-import com.example.OfferApp.view.logIn.LoginScreen
-import com.example.OfferApp.view.logIn.LoginViewModel
+import com.example.OfferApp.view.login.LogInScreen
+import com.example.OfferApp.viewmodel.AuthViewModel
 
 @Composable
-fun NavGraph(navController: NavHostController, loginViewModel: LoginViewModel) {
+fun NavGraph(navController: NavHostController, loginViewModel: AuthViewModel) {
     NavHost(navController, startDestination = "login") {
         composable("login") {
-            LoginScreen(loginViewModel) {
+            LogInScreen(loginViewModel) {
                 navController.navigate("home") {
                     popUpTo("login") { inclusive = true }
                 }
