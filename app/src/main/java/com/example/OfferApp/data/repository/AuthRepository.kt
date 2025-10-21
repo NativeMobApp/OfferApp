@@ -1,32 +1,32 @@
 package com.example.OfferApp.data
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.tasks.await
 
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
-    suspend fun registerUser(email: String, password: String): Result<Unit> {
+
+    val currentUser: FirebaseUser? get() = auth.currentUser
+
+    suspend fun registerUser(email: String, password: String): Result<FirebaseUser?> {
         return try {
-            auth.createUserWithEmailAndPassword(email, password).await()
-            Result.success(Unit)
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
+            Result.success(result.user)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun loginUser(email: String, password: String): Result<Unit> {
+    suspend fun loginUser(email: String, password: String): Result<FirebaseUser?> {
         return try {
-            auth.signInWithEmailAndPassword(email, password).await()
-            Result.success(Unit)
+            val result = auth.signInWithEmailAndPassword(email, password).await()
+            Result.success(result.user)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    fun logout() {
-        auth.signOut()
-    }
-
-    fun isUserLoggedIn(): Boolean = auth.currentUser != null
+    fun logout() = auth.signOut()
 }

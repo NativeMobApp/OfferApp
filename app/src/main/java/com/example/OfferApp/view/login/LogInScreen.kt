@@ -7,6 +7,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.OfferApp.viewmodel.AuthViewModel
+import com.example.OfferApp.viewmodel.AuthState
+
 
 @Composable
 fun LogInScreen(
@@ -48,10 +50,11 @@ fun LogInScreen(
         }
 
         when (state) {
-            is AuthViewModel.AuthState.Loading -> CircularProgressIndicator()
-            is AuthViewModel.AuthState.Success -> onSuccess()
-            is AuthViewModel.AuthState.Error -> Text("Error: ${(state as AuthViewModel.AuthState.Error).message}")
+            is AuthState.Loading -> CircularProgressIndicator()
+            is AuthState.Success -> onSuccess()
+            is AuthState.Error -> Text("Error: ${(state as AuthState.Error).message}")
             else -> {}
         }
+
     }
 }
