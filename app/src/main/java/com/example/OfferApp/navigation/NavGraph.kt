@@ -12,6 +12,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.OfferApp.domain.entities.User
 import com.example.OfferApp.view.login.LogInScreen
+import com.example.OfferApp.view.register.RegisterScreen
+import com.example.OfferApp.view.forgotpassword.ForgotPasswordScreen
+import com.example.OfferApp.view.header.Header
 import com.example.OfferApp.view.main.CreatePostScreen
 import com.example.OfferApp.view.main.MainScreen
 import com.example.OfferApp.view.main.PostDetailScreen
@@ -44,6 +47,48 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                 onForgotClick = { navController.navigate("forgot_password") }
             )
         }
+
+        composable(Screen.Home.route) {
+
+                // Llama a HomeScreen y define el contenido del 'header'
+                HomeScreen(
+                    header = {
+                        Header(
+                            onSearchClicked = {
+                            },
+                            onSesionClicked = {
+                                // Acción de Sesión: Cerrar sesión y navegar a Login
+                                authViewModel.logout()
+                                navController.navigate(Screen.Login.route) {
+                                    // Eliminar la pila de pantallas anteriores
+                                    popUpTo(Screen.Home.route) { inclusive = true }
+                                }
+                            },
+                            onLogoClicked = {
+                                // Acción de Logo: Volver a la parte superior de la Home
+                                navController.popBackStack(Screen.Home.route, inclusive = false)
+                            }
+                        )
+                    }
+                )
+            }
+
+
+        composable(Screen.Register.route) {
+            RegisterScreen(authViewModel) {
+                navController.navigate(Screen.Home.route) {
+                    popUpTo(Screen.Register.route) { inclusive = true }
+                }
+            }
+        }
+
+        /*
+        composable(Screen.ForgotPassword.route) {
+            ForgotPasswordScreen(
+                viewModel = authViewModel,
+                onPasswordReset = { navController.popBackStack() }
+            )
+        }*/
         composable(
             route = "main/{userName}",
             arguments = listOf(navArgument("userName") { type = NavType.StringType })
