@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.OfferApp.navigation.NavGraph
-import com.example.OfferApp.view.login.LogInScreen
 import com.example.OfferApp.viewmodel.AuthViewModel
 
 class MainActivity : ComponentActivity() {
@@ -15,17 +14,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val navController = rememberNavController()
             val authViewModel: AuthViewModel = viewModel()
+
+            // 🚀 Solo esto, sin LogInScreen directo
             NavGraph(navController, authViewModel)
-
-            LogInScreen(
-                viewModel = authViewModel,
-                onSuccess = {
-                    // Acá podés navegar a tu HomeScreen
-                }
-            )
-
-
-
         }
     }
 }
