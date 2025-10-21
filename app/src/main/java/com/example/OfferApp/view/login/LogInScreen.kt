@@ -13,14 +13,18 @@ import com.example.OfferApp.viewmodel.AuthState
 @Composable
 fun LogInScreen(
     viewModel: AuthViewModel,
-    onSuccess: () -> Unit
+    onSuccess: () -> Unit,
+    onRegisterClick: () -> Unit,
+    onForgotClick: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.Center
     ) {
         Text("Iniciar Sesión", style = MaterialTheme.typography.headlineMedium)
@@ -49,12 +53,22 @@ fun LogInScreen(
             Text("Ingresar")
         }
 
+        // 🔹 Botones extra
+        TextButton(onClick = onRegisterClick, modifier = Modifier.fillMaxWidth()) {
+            Text("Crear cuenta")
+        }
+
+        TextButton(onClick = onForgotClick, modifier = Modifier.fillMaxWidth()) {
+            Text("Olvidé mi contraseña")
+        }
+
+        Spacer(Modifier.height(8.dp))
+
         when (state) {
             is AuthState.Loading -> CircularProgressIndicator()
             is AuthState.Success -> onSuccess()
             is AuthState.Error -> Text("Error: ${(state as AuthState.Error).message}")
             else -> {}
         }
-
     }
 }
