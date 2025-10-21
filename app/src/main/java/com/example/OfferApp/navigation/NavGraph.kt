@@ -1,14 +1,7 @@
 package com.example.OfferApp.navigation
 
-import android.content.res.Configuration
-import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -17,7 +10,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.domain.entities.User
 import com.example.OfferApp.view.login.LogInScreen
 import com.example.OfferApp.view.main.CreatePostScreen
@@ -40,9 +32,6 @@ class MainViewModelFactory(private val userName: String) : ViewModelProvider.Fac
 
 @Composable
 fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
     NavHost(navController = navController, startDestination = "login") {
         composable("login") {
             LogInScreen(authViewModel,
@@ -61,34 +50,17 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
         ) { backStackEntry ->
             val userName = backStackEntry.arguments?.getString("userName") ?: ""
             val mainViewModel: MainViewModel = viewModel(factory = MainViewModelFactory(userName))
-            var selectedPost by remember { mutableStateOf<Post?>(null) }
 
-            if (isLandscape) {
-                Row {
-                    MainScreen(
-                        mainViewModel = mainViewModel,
-                        onNavigateToCreatePost = { navController.navigate("create_post") },
-                        onPostClick = { postIndex ->
-                            selectedPost = mainViewModel.posts.getOrNull(postIndex)
-                        },
-                        modifier = Modifier.weight(1f)
-                    )
-                    selectedPost?.let {
-                        PostDetailScreen(post = it, modifier = Modifier.weight(1f))
-                    }
+            MainScreen(
+                mainViewModel = mainViewModel,
+                onNavigateToCreatePost = { navController.navigate("create_post") },
+                onPostClick = { postIndex ->
+                    navController.navigate("post_detail/$postIndex")
                 }
-            } else {
-                MainScreen(
-                    mainViewModel = mainViewModel,
-                    onNavigateToCreatePost = { navController.navigate("create_post") },
-                    onPostClick = { postIndex ->
-                        navController.navigate("post_detail/$postIndex")
-                    }
-                )
-            }
+            )
         }
         composable("create_post") {
-            val parentEntry = remember(navController.previousBackStackEntry) {
+            val parentEntry = remember(it) {
                 navController.getBackStackEntry("main/{userName}")
             }
             val userName = parentEntry.arguments?.getString("userName") ?: ""
@@ -99,7 +71,7 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
             route = "post_detail/{postId}",
             arguments = listOf(navArgument("postId") { type = NavType.IntType })
         ) { backStackEntry ->
-            val parentEntry = remember(navController.previousBackStackEntry) {
+            val parentEntry = remember(backStackEntry) {
                 navController.getBackStackEntry("main/{userName}")
             }
             val userName = parentEntry.arguments?.getString("userName") ?: ""
