@@ -9,11 +9,10 @@ import androidx.compose.ui.unit.dp
 import com.example.OfferApp.viewmodel.AuthViewModel
 import com.example.OfferApp.viewmodel.AuthState
 
-
 @Composable
 fun LogInScreen(
     viewModel: AuthViewModel,
-    onSuccess: () -> Unit,
+    onSuccess: (String) -> Unit, // ← 🔹 ahora recibe el nombre de usuario
     onRegisterClick: () -> Unit,
     onForgotClick: () -> Unit
 ) {
@@ -53,7 +52,6 @@ fun LogInScreen(
             Text("Ingresar")
         }
 
-        // 🔹 Botones extra
         TextButton(onClick = onRegisterClick, modifier = Modifier.fillMaxWidth()) {
             Text("Crear cuenta")
         }
@@ -66,7 +64,7 @@ fun LogInScreen(
 
         when (state) {
             is AuthState.Loading -> CircularProgressIndicator()
-            is AuthState.Success -> onSuccess()
+            is AuthState.Success -> onSuccess(email) // ← 🔹 pasa el email al NavGraph
             is AuthState.Error -> Text("Error: ${(state as AuthState.Error).message}")
             else -> {}
         }
