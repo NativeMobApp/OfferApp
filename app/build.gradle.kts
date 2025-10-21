@@ -49,17 +49,26 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-analytics")
 
-
     //Importando el firebase Bom
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
 
-    implementation("com.google.firebase:firebase-auth")
-
-    //HACER:
-    implementation("com.google.firebase:firebase-analytics")
-
     implementation("androidx.navigation:navigation-compose:2.8.3")
 
+    // Coil para carga de imagenes
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // CameraX - Updated to match working version
+    implementation("androidx.camera:camera-core:1.3.3")
+    implementation("androidx.camera:camera-camera2:1.3.3")
+    implementation("androidx.camera:camera-lifecycle:1.3.3")
+    implementation("androidx.camera:camera-view:1.3.3")
+    implementation("androidx.camera:camera-extensions:1.3.3")
+
+    // Location
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
+    // Lifecycle-Compose para LocalLifecycleOwner
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -69,6 +78,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.firebase.crashlytics.buildtools)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
