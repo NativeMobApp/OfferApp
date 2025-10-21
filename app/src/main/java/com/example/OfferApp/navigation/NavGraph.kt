@@ -11,6 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.OfferApp.domain.entities.User
+import com.example.OfferApp.view.forgotpassword.ForgotPasswordScreen
 import com.example.OfferApp.view.login.LogInScreen
 import com.example.OfferApp.view.main.CreatePostScreen
 import com.example.OfferApp.view.main.MainScreen
@@ -85,5 +86,13 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                 navController.popBackStack()
             }
         }
+        composable("forgot_password") {
+            ForgotPasswordScreen(
+                viewModel = authViewModel,
+                onPasswordReset = { navController.popBackStack() }
+            )
+        }
+
+
     }
 }
