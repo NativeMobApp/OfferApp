@@ -11,6 +11,7 @@ sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
     data class Success(val userEmail: String?) : AuthState()
+    data class PasswordReset(val message: String) : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -42,6 +43,15 @@ class AuthViewModel(
             )
         }
     }
-
+    fun resetPassword(email: String) {
+        viewModelScope.launch {
+            _state.value = AuthState.Loading
+            val result = repository.resetPassword(email)
+            _state.value = result.fold(
+                onSuccess = { AuthState.Success("Se envió un mail a $email") },
+                onFailure = { AuthState.Error(it.message ?: "Error al enviar mail") }
+            )
+        }
+    }
     fun logout() = repository.logout()
 }
