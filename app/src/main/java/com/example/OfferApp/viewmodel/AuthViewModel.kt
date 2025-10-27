@@ -13,6 +13,7 @@ sealed class AuthState {
     data class Success(val userEmail: String?) : AuthState()
     data class PasswordReset(val message: String) : AuthState()
     data class Error(val message: String) : AuthState()
+
 }
 
 class AuthViewModel(
@@ -53,5 +54,9 @@ class AuthViewModel(
             )
         }
     }
-    fun logout() = repository.logout()
+    fun logout() {
+        repository.logout()
+        _state.value = AuthState.Idle
+    }
+
 }

@@ -26,6 +26,7 @@ class FirebaseAuthService(
 
     fun logout() {
         auth.signOut()
+
     }
 
     fun currentUser() = auth.currentUser

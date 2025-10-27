@@ -86,6 +86,13 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                 onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
                 onPostClick = { postIndex ->
                     navController.navigate(Screen.PostDetail.createRoute(postIndex))
+                },
+                        onLogoutClicked = {
+                    authViewModel.logout()
+                    navController.navigate(Screen.Login.route) {
+
+                        popUpTo(Screen.Main.route) { inclusive = true }
+                    }
                 }
             )
         }

@@ -26,17 +26,23 @@ fun MainScreen(
     mainViewModel: MainViewModel = viewModel(),
     onNavigateToCreatePost: () -> Unit,
     onPostClick: (Int) -> Unit,
+    onLogoutClicked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     var selectedPostIndex by remember { mutableStateOf<Int?>(null) }
-
+    var searchQuery by remember { mutableStateOf("") }
+    val onQueryChangeAction: (String) -> Unit = { newQuery ->
+        searchQuery = newQuery
+        mainViewModel.searchPosts(newQuery)
+    }
     Scaffold(
         topBar = {
             Header(
-                onSearchClicked = { /* TODO: acción buscar */ },
-                onSesionClicked = { /* TODO: acción cerrar sesión */ },
+                query = searchQuery,
+                onQueryChange = onQueryChangeAction,
+                onSesionClicked = onLogoutClicked,
                 onLogoClicked = { /* TODO: acción clic logo */ }
             )
         },

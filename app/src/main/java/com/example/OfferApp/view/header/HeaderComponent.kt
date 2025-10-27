@@ -1,24 +1,26 @@
 package com.example.OfferApp.view.header
 
 import androidx.compose.foundation.Image
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.*
-import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import com.example.OfferApp.R
-
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun Header(
-    onSearchClicked: () -> Unit,
+    query: String,
+    onQueryChange: (String) -> Unit,
     onSesionClicked: () -> Unit,
     onLogoClicked: () -> Unit
 ) {
@@ -31,7 +33,7 @@ fun Header(
     ) {
 
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            TopRow(onSesionClicked, onLogoClicked, onSearchClicked)
+            TopRow(query, onQueryChange,onSesionClicked, onLogoClicked)
         }
     }
 }
@@ -40,9 +42,10 @@ fun Header(
 
 @Composable
 fun TopRow(
+    query: String,
+    onQueryChange: (String) -> Unit,
     onSesionClicked: () -> Unit,
     onLogoClicked: () -> Unit,
-    onSearchClicked: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -65,7 +68,8 @@ fun TopRow(
 
         }
         SearchBar(
-            onSearchClicked = onSearchClicked,
+            query = query,
+            onQueryChange = onQueryChange,
             modifier = Modifier.weight(1f)
         )
 
@@ -83,23 +87,35 @@ fun TopRow(
 // ----------------------------------------------------------------------
 
 @Composable
-fun SearchBar(onSearchClicked: () -> Unit,modifier: Modifier) {
+fun SearchBar(query: String, onQueryChange: (String) -> Unit, modifier: Modifier) {
 
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
-            modifier = Modifier
-                .clickable(onClick = onSearchClicked)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.Search, contentDescription = "Buscar", tint = Color.Gray)
-            Spacer(modifier = Modifier.width(8.dp))
 
-            Text(text = "Buscar productos...", color = Color.Gray)
-        }
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder ={ Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.fillMaxHeight()) {
+                Text("Buscar productos...", color = Color.Gray)
+            }
+                         },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Buscar", tint = Color.Gray) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+
+
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+                disabledContainerColor = Color.White,
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+            ),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 18.sp, color = Color.Black)
+
+        )
     }
 }
