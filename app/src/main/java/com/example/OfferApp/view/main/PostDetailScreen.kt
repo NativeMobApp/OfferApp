@@ -29,7 +29,7 @@ fun PostDetailScreen(post: Post, modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AsyncImage(
-            model = post.imageUrl,
+            model = post.imageUrl.replace("http://", "https://"),
             contentDescription = "Post image",
             modifier = Modifier.fillMaxWidth(),
             contentScale = ContentScale.Crop
@@ -43,6 +43,10 @@ fun PostDetailScreen(post: Post, modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(4.dp))
         Text(text = "Longitud: ${post.longitude}", style = MaterialTheme.typography.bodySmall)
         Spacer(modifier = Modifier.height(8.dp))
-        Text(text = "Publicado por: ${post.user.email}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+        Text(
+            text = "Publicado por: ${post.user?.email ?: "Usuario desconocido"}",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

@@ -91,7 +91,7 @@ fun PostItem(post: Post, onClick: () -> Unit) {
     ) {
         Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
-                model = post.imageUrl,
+                model = post.imageUrl.replace("http://", "https://"),
                 contentDescription = "Post image",
                 modifier = Modifier.size(80.dp),
                 contentScale = ContentScale.Crop
@@ -110,7 +110,7 @@ fun PostItem(post: Post, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Publicado por: ${post.user.email}",
+                    text = "Publicado por: ${post.user?.email ?: "Usuario desconocido"}",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold
                 )

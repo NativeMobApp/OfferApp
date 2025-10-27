@@ -16,6 +16,7 @@ import com.example.OfferApp.view.login.LogInScreen
 import com.example.OfferApp.view.main.CreatePostScreen
 import com.example.OfferApp.view.main.MainScreen
 import com.example.OfferApp.view.main.PostDetailScreen
+import com.example.OfferApp.view.register.RegisterScreen
 import com.example.OfferApp.viewmodel.AuthViewModel
 import com.example.OfferApp.viewmodel.MainViewModel
 import java.util.UUID
@@ -70,6 +71,14 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                 },
                 onRegisterClick = { navController.navigate(Screen.Register.route) },
                 onForgotClick = { navController.navigate(Screen.ForgotPassword.route) }
+            )
+        }
+        
+        // -------- REGISTER --------
+        composable(Screen.Register.route) {
+            RegisterScreen(
+                viewModel = authViewModel,
+                onRegisterSuccess = { navController.popBackStack() } // Vuelve a Login
             )
         }
 

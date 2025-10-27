@@ -1,6 +1,9 @@
 package com.example.OfferApp.domain.entities
 
+import com.google.firebase.firestore.IgnoreExtraProperties
+
+@IgnoreExtraProperties
 data class User(
-    val uid: String = "",
-    val email: String = ""
+    var uid: String = "",
+    var email: String = ""
 )

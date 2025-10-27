@@ -44,8 +44,8 @@ fun ForgotPasswordScreen(
         when (state) {
             is AuthState.Loading -> CircularProgressIndicator()
 
-            is AuthState.PasswordReset -> {
-                Text((state as AuthState.PasswordReset).message)
+            is AuthState.PasswordResetSuccess -> {
+                Text((state as AuthState.PasswordResetSuccess).message)
                 onPasswordReset() // vuelve al login
             }
 

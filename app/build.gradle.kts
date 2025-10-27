@@ -1,10 +1,7 @@
 plugins {
-    //alias(libs.plugins.android.application)
+    id("com.android.application")
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-
-    id("com.android.application")
-    //se agrega los servicioes de gradle plugin
     id("com.google.gms.google-services")
 }
 
@@ -41,35 +38,25 @@ android {
     buildFeatures {
         compose = true
     }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.10"
+    }
 }
 
 dependencies {
-
-    // Firebase Auth y Analytics
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-analytics")
-
-    //Importando el firebase Bom
+    // Firebase BOM
     implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
 
-    implementation("androidx.navigation:navigation-compose:2.8.3")
+    // Firebase
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-firestore-ktx:25.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1") // Added for .await()
 
-    // Coil para carga de imagenes
-    implementation("io.coil-kt:coil-compose:2.5.0")
+    // Cloudinary
+    implementation("com.cloudinary:cloudinary-android:2.4.0")
 
-    // CameraX - Updated to match working version
-    implementation("androidx.camera:camera-core:1.3.3")
-    implementation("androidx.camera:camera-camera2:1.3.3")
-    implementation("androidx.camera:camera-lifecycle:1.3.3")
-    implementation("androidx.camera:camera-view:1.3.3")
-    implementation("androidx.camera:camera-extensions:1.3.3")
-
-    // Location
-    implementation("com.google.android.gms:play-services-location:21.2.0")
-
-    // Lifecycle-Compose para LocalLifecycleOwner
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
-
+    // AndroidX & UI
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -79,8 +66,21 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-extended")
-    implementation(libs.firebase.crashlytics.buildtools)
-    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation("androidx.navigation:navigation-compose:2.8.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+
+    // CameraX
+    implementation("androidx.camera:camera-core:1.3.3")
+    implementation("androidx.camera:camera-camera2:1.3.3")
+    implementation("androidx.camera:camera-lifecycle:1.3.3")
+    implementation("androidx.camera:camera-view:1.3.3")
+    implementation("androidx.camera:camera-extensions:1.3.3")
+
+    // Other
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

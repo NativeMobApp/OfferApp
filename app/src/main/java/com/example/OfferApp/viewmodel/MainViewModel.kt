@@ -1,40 +1,52 @@
 package com.example.OfferApp.viewmodel
 
+import android.net.Uri
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.OfferApp.data.repository.PostRepository
 import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.domain.entities.User
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 class MainViewModel(val user: User) : ViewModel() {
-    private val _allPosts = mutableStateListOf<Post>()
+    private val repository = PostRepository()
 
-    var posts by mutableStateOf(_allPosts.toList())
+    var posts by mutableStateOf<List<Post>>(emptyList())
         private set
+    
+    private var originalPosts by mutableStateOf<List<Post>>(emptyList())
 
-    fun addPost(description: String, imageUrl: String, location: String, latitude: Double, longitude: Double) {
-        _allPosts.add(
-            Post(
-                description = description,
-                imageUrl = imageUrl,
-                location = location,
-                latitude = latitude,
-                longitude = longitude,
-                user = user
-            )
+    init {
+        viewModelScope.launch {
+            repository.getPosts().collect { postList ->
+                originalPosts = postList
+                posts = postList
+            }
+        }
+    }
+
+    suspend fun addPost(description: String, imageUri: Uri, location: String, latitude: Double, longitude: Double): Result<Unit> {
+        val post = Post(
+            description = description,
+            location = location,
+            latitude = latitude,
+            longitude = longitude,
+            user = user
         )
-        posts = _allPosts.toList()
+        return repository.addPost(post, imageUri)
     }
 
     fun searchPosts(query: String) {
-        if (query.isBlank()) {
-
-            posts = _allPosts.toList()
+        posts = if (query.isBlank()) {
+            originalPosts
         } else {
-            posts = _allPosts.filter {
-                it.description.contains(query, ignoreCase = true)
+            originalPosts.filter {
+                it.description.contains(query, ignoreCase = true) || 
+                it.location.contains(query, ignoreCase = true)
             }
         }
     }
