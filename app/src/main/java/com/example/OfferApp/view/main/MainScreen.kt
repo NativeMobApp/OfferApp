@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,7 +61,7 @@ fun MainScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     LazyColumn {
                         itemsIndexed(mainViewModel.posts) { index, post ->
-                            PostItem(post = post, onClick = { selectedPostIndex = index })
+                            PostItem(mainViewModel = mainViewModel, post = post, onClick = { selectedPostIndex = index })
                         }
                     }
                 }
@@ -74,7 +76,7 @@ fun MainScreen(
         } else {
             LazyColumn(modifier = Modifier.padding(paddingValues)) {
                 itemsIndexed(mainViewModel.posts) { index, post ->
-                    PostItem(post = post, onClick = { onPostClick(index) })
+                    PostItem(mainViewModel = mainViewModel, post = post, onClick = { onPostClick(index) })
                 }
             }
         }
@@ -82,7 +84,7 @@ fun MainScreen(
 }
 
 @Composable
-fun PostItem(post: Post, onClick: () -> Unit) {
+fun PostItem(mainViewModel: MainViewModel, post: Post, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -97,7 +99,7 @@ fun PostItem(post: Post, onClick: () -> Unit) {
                 contentScale = ContentScale.Crop
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = post.description,
                     style = MaterialTheme.typography.bodyLarge,
@@ -114,6 +116,15 @@ fun PostItem(post: Post, onClick: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold
                 )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(onClick = { mainViewModel.updatePostScore(post.id, 1) }) {
+                    Icon(Icons.Default.ThumbUp, contentDescription = "Like")
+                }
+                Text(text = "${post.scores.sumOf { it.value }}")
+                IconButton(onClick = { mainViewModel.updatePostScore(post.id, -1) }) {
+                    Icon(Icons.Default.ThumbDown, contentDescription = "Dislike")
+                }
             }
         }
     }

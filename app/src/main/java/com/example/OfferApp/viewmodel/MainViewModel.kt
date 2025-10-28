@@ -40,6 +40,12 @@ class MainViewModel(val user: User) : ViewModel() {
         return repository.addPost(post, imageUri)
     }
 
+    fun updatePostScore(postId: String, value: Int) {
+        viewModelScope.launch {
+            repository.updatePostScore(postId, user.uid, value)
+        }
+    }
+
     fun searchPosts(query: String) {
         posts = if (query.isBlank()) {
             originalPosts
