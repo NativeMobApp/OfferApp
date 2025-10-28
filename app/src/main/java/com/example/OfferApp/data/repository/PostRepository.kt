@@ -4,9 +4,11 @@ import android.net.Uri
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.OfferApp.domain.entities.Comment
 import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.domain.entities.Score
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -18,6 +20,7 @@ import kotlin.coroutines.resumeWithException
 class PostRepository {
 
     private val firestore = FirebaseFirestore.getInstance()
+    private val postsCollection = firestore.collection("posts")
 
     private suspend fun uploadImageToCloudinary(imageUri: Uri): String {
         return suspendCancellableCoroutine { continuation ->
@@ -49,16 +52,7 @@ class PostRepository {
         return try {
             val imageUrl = uploadImageToCloudinary(imageUri)
             post.imageUrl = imageUrl
-            
-            suspendCancellableCoroutine<Unit> { continuation ->
-                firestore.collection("posts").add(post)
-                    .addOnSuccessListener { 
-                        if (continuation.isActive) continuation.resume(Unit) 
-                    }
-                    .addOnFailureListener { e -> 
-                        if (continuation.isActive) continuation.resumeWithException(e) 
-                    }
-            }
+            postsCollection.add(post).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -67,7 +61,7 @@ class PostRepository {
 
     suspend fun updatePostScore(postId: String, userId: String, value: Int): Result<Unit> {
         return try {
-            val postRef = firestore.collection("posts").document(postId)
+            val postRef = postsCollection.document(postId)
             firestore.runTransaction { transaction ->
                 val post = transaction.get(postRef).toObject(Post::class.java)
                     ?: throw Exception("Post not found")
@@ -92,9 +86,36 @@ class PostRepository {
         }
     }
 
+    suspend fun addCommentToPost(postId: String, comment: Comment): Result<Unit> {
+        return try {
+            postsCollection.document(postId).collection("comments").add(comment).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun getCommentsForPost(postId: String): Flow<List<Comment>> {
+        return callbackFlow {
+            val listener = postsCollection.document(postId).collection("comments")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        close(e)
+                        return@addSnapshotListener
+                    }
+                    if (snapshot != null) {
+                        val comments = snapshot.toObjects(Comment::class.java)
+                        trySend(comments).isSuccess
+                    }
+                }
+            awaitClose { listener.remove() }
+        }
+    }
+
     fun getPosts(): Flow<List<Post>> {
         return callbackFlow {
-            val listener = firestore.collection("posts")
+            val listener = postsCollection
                 .addSnapshotListener { snapshot, e ->
                     if (e != null) {
                         close(e)

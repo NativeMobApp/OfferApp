@@ -7,8 +7,11 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.OfferApp.data.repository.PostRepository
+import com.example.OfferApp.domain.entities.Comment
 import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.domain.entities.User
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -20,17 +23,33 @@ class MainViewModel(val user: User) : ViewModel() {
     
     private var originalPosts by mutableStateOf<List<Post>>(emptyList())
     
-    // The search query is now part of the ViewModel's state
     var searchQuery by mutableStateOf("")
         private set
+
+    private val _comments = MutableStateFlow<List<Comment>>(emptyList())
+    val comments = _comments.asStateFlow()
 
     init {
         viewModelScope.launch {
             repository.getPosts().collect { postList ->
                 originalPosts = postList
-                // When the original list updates, re-apply the current search
-                onSearchQueryChange(searchQuery)
+                onSearchQueryChange(searchQuery) // Re-apply search on data change
             }
+        }
+    }
+
+    fun loadComments(postId: String) {
+        viewModelScope.launch {
+            repository.getCommentsForPost(postId).collect {
+                _comments.value = it
+            }
+        }
+    }
+
+    fun addComment(postId: String, text: String) {
+        viewModelScope.launch {
+            val comment = Comment(user = user, text = text)
+            repository.addCommentToPost(postId, comment)
         }
     }
 
@@ -51,7 +70,6 @@ class MainViewModel(val user: User) : ViewModel() {
         }
     }
 
-    // This function now updates the state and performs the search
     fun onSearchQueryChange(newQuery: String) {
         searchQuery = newQuery
         posts = if (newQuery.isBlank()) {
