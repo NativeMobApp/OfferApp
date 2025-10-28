@@ -53,5 +53,8 @@ class AuthViewModel(
             )
         }
     }
-    fun logout() = repository.logout()
+    fun logout() {
+        repository.logout()
+        _state.value = AuthState.Idle
+    }
 }
