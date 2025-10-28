@@ -19,12 +19,17 @@ class MainViewModel(val user: User) : ViewModel() {
         private set
     
     private var originalPosts by mutableStateOf<List<Post>>(emptyList())
+    
+    // The search query is now part of the ViewModel's state
+    var searchQuery by mutableStateOf("")
+        private set
 
     init {
         viewModelScope.launch {
             repository.getPosts().collect { postList ->
                 originalPosts = postList
-                posts = postList
+                // When the original list updates, re-apply the current search
+                onSearchQueryChange(searchQuery)
             }
         }
     }
@@ -46,14 +51,20 @@ class MainViewModel(val user: User) : ViewModel() {
         }
     }
 
-    fun searchPosts(query: String) {
-        posts = if (query.isBlank()) {
+    // This function now updates the state and performs the search
+    fun onSearchQueryChange(newQuery: String) {
+        searchQuery = newQuery
+        posts = if (newQuery.isBlank()) {
             originalPosts
         } else {
             originalPosts.filter {
-                it.description.contains(query, ignoreCase = true) || 
-                it.location.contains(query, ignoreCase = true)
+                it.description.contains(newQuery, ignoreCase = true) || 
+                it.location.contains(newQuery, ignoreCase = true)
             }
         }
+    }
+
+    fun getPostById(id: String): Post? {
+        return originalPosts.find { it.id == id }
     }
 }

@@ -4,7 +4,7 @@ import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ThumbDown
@@ -23,28 +23,25 @@ import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.view.header.Header
 import com.example.OfferApp.viewmodel.MainViewModel
 import androidx.compose.material.icons.filled.LocationOn
+
 @Composable
 fun MainScreen(
     mainViewModel: MainViewModel = viewModel(),
     onNavigateToCreatePost: () -> Unit,
-    onPostClick: (Int) -> Unit,
+    onPostClick: (String) -> Unit, // Now expects the post ID (String)
     onLogoutClicked: () -> Unit,
     onNavigateToMap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    var selectedPostIndex by remember { mutableStateOf<Int?>(null) }
-    var searchQuery by remember { mutableStateOf("") }
-    val onQueryChangeAction: (String) -> Unit = { newQuery ->
-        searchQuery = newQuery
-        mainViewModel.searchPosts(newQuery)
-    }
+    var selectedPost by remember { mutableStateOf<Post?>(null) }
+
     Scaffold(
         topBar = {
             Header(
-                query = searchQuery,
-                onQueryChange = onQueryChangeAction,
+                query = mainViewModel.searchQuery, // Read query from ViewModel
+                onQueryChange = { mainViewModel.onSearchQueryChange(it) }, // Update query in ViewModel
                 onSesionClicked = onLogoutClicked,
                 onLogoClicked = { /* TODO: acción clic logo */ }
             )
@@ -54,16 +51,13 @@ fun MainScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp), // Espacio entre los botones
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 FloatingActionButton(
-                    onClick = onNavigateToMap, // Usa la nueva acción de navegación
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer, // Color diferente para diferenciar
+                    onClick = onNavigateToMap,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 ) {
                     Icon(Icons.Default.LocationOn, contentDescription = "Show map")
                 }
-
-
                 FloatingActionButton(onClick = onNavigateToCreatePost) {
                     Icon(Icons.Default.Add, contentDescription = "Add post")
                 }
@@ -73,26 +67,26 @@ fun MainScreen(
     ) { paddingValues ->
         if (isLandscape) {
             Row(modifier = Modifier.padding(paddingValues)) {
-                // Lista de posts
                 Box(modifier = Modifier.weight(1f)) {
                     LazyColumn {
-                        itemsIndexed(mainViewModel.posts) { index, post ->
-                            PostItem(mainViewModel = mainViewModel, post = post, onClick = { selectedPostIndex = index })
+                        items(mainViewModel.posts) { post ->
+                            PostItem(mainViewModel = mainViewModel, post = post, onClick = { selectedPost = post })
                         }
                     }
                 }
-
-                // Detalle del post seleccionado
                 Box(modifier = Modifier.weight(1f)) {
-                    selectedPostIndex?.let {
-                        PostDetailScreen(post = mainViewModel.posts[it])
+                    selectedPost?.let { post ->
+                        PostDetailContent(
+                            mainViewModel = mainViewModel,
+                            post = post
+                        )
                     }
                 }
             }
         } else {
             LazyColumn(modifier = Modifier.padding(paddingValues)) {
-                itemsIndexed(mainViewModel.posts) { index, post ->
-                    PostItem(mainViewModel = mainViewModel, post = post, onClick = { onPostClick(index) })
+                items(mainViewModel.posts) { post ->
+                    PostItem(mainViewModel = mainViewModel, post = post, onClick = { onPostClick(post.id) })
                 }
             }
         }
@@ -123,7 +117,7 @@ fun PostItem(mainViewModel: MainViewModel, post: Post, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Latitud: ${post.latitude}",
+                    text = "Ubicación: ${post.location}", // Changed from latitude to location
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(modifier = Modifier.height(4.dp))

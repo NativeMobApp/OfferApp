@@ -34,8 +34,8 @@ sealed class Screen(val route: String) {
     }
 
     object CreatePost : Screen("create_post")
-    object PostDetail : Screen("post_detail/{postId}") {
-        fun createRoute(postId: Int) = "post_detail/$postId"
+    object PostDetail : Screen("post_detail/{postId}") { // The route now expects a String ID
+        fun createRoute(postId: String) = "post_detail/$postId"
     }
     object Map : Screen("map")
 }
@@ -43,7 +43,6 @@ sealed class Screen(val route: String) {
 // -----------------------------
 // FACTORY DEL MAINVIEWMODEL
 // -----------------------------
-// The factory now receives the real user data.
 class MainViewModelFactory(private val user: User) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
@@ -99,8 +98,8 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
             MainScreen(
                 mainViewModel = mainViewModel,
                 onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
-                onPostClick = { postIndex ->
-                    navController.navigate(Screen.PostDetail.createRoute(postIndex))
+                onPostClick = { postId -> // The click now provides the String ID
+                    navController.navigate(Screen.PostDetail.createRoute(postId))
                 },
                 onLogoutClicked = {
                     authViewModel.logout()
@@ -134,7 +133,7 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
         // -------- DETALLE DE POST --------
         composable(
             route = Screen.PostDetail.route,
-            arguments = listOf(navArgument("postId") { type = NavType.IntType })
+            arguments = listOf(navArgument("postId") { type = NavType.StringType }) // Argument is now a String
         ) { backStackEntry ->
             val parentEntry = remember(backStackEntry) {
                 navController.getBackStackEntry(Screen.Main.route)
@@ -145,11 +144,21 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
             val mainViewModel: MainViewModel =
                 viewModel(factory = MainViewModelFactory(user), viewModelStoreOwner = parentEntry)
 
-            val postId = backStackEntry.arguments?.getInt("postId")
-            val post = postId?.let { mainViewModel.posts.getOrNull(it) }
+            val postId = backStackEntry.arguments?.getString("postId")
+            val post = postId?.let { mainViewModel.getPostById(it) } // Find the post by its unique ID
 
             if (post != null) {
-                PostDetailScreen(post = post)
+                PostDetailScreen(
+                    mainViewModel = mainViewModel,
+                    post = post,
+                    onBackClicked = { navController.popBackStack() },
+                    onLogoutClicked = {
+                        authViewModel.logout()
+                        navController.navigate(Screen.Login.route) {
+                             popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    }
+                )
             } else {
                 navController.popBackStack()
             }
@@ -164,10 +173,8 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
           // -------- PANTALLA DE MAPA --------
         composable(Screen.Map.route) { backStackEntry ->
             val parentEntry = remember(backStackEntry) {
-                // Obtenemos el MainViewModel desde la ruta principal para acceder a los posts
                 navController.getBackStackEntry(Screen.Main.route)
             }
-            // Correctly get user data and create the ViewModel
             val uid = parentEntry.arguments?.getString("uid") ?: ""
             val email = parentEntry.arguments?.getString("email") ?: ""
             val user = User(uid, email)
@@ -176,7 +183,7 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
 
             MapScreen(
                 mainViewModel = mainViewModel,
-                onBackClicked = { navController.popBackStack() } // Para volver atrás
+                onBackClicked = { navController.popBackStack() }
             )
         }
     }
