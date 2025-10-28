@@ -20,6 +20,7 @@ import com.example.OfferApp.view.register.RegisterScreen
 import com.example.OfferApp.viewmodel.AuthViewModel
 import com.example.OfferApp.viewmodel.MainViewModel
 import java.util.UUID
+import com.example.OfferApp.view.main.MapScreen
 
 // -----------------------------
 // RUTAS DEFINIDAS CON SEALED CLASS
@@ -37,6 +38,7 @@ sealed class Screen(val route: String) {
     object PostDetail : Screen("post_detail/{postId}") {
         fun createRoute(postId: Int) = "post_detail/$postId"
     }
+    object Map : Screen("map")
 }
 
 // -----------------------------
@@ -102,6 +104,9 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
 
                         popUpTo(Screen.Main.route) { inclusive = true }
                     }
+                },
+                onNavigateToMap = {
+                    navController.navigate(Screen.Map.route)
                 }
             )
         }
@@ -149,6 +154,20 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
             )
         }
 
+          // -------- PANTALLA DE MAPA --------
+        composable(Screen.Map.route) { backStackEntry ->
+            val parentEntry = remember(backStackEntry) {
+                // Obtenemos el MainViewModel desde la ruta principal para acceder a los posts
+                navController.getBackStackEntry(Screen.Main.route)
+            }
+            val userName = parentEntry.arguments?.getString("userName") ?: ""
+            val mainViewModel: MainViewModel =
+                viewModel(factory = MainViewModelFactory(userName), viewModelStoreOwner = parentEntry)
 
+            MapScreen(
+                mainViewModel = mainViewModel,
+                onBackClicked = { navController.popBackStack() } // Para volver atrás
+            )
+        }
     }
 }

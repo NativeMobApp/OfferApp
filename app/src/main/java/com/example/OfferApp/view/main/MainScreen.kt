@@ -20,13 +20,14 @@ import coil.compose.AsyncImage
 import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.view.header.Header
 import com.example.OfferApp.viewmodel.MainViewModel
-
+import androidx.compose.material.icons.filled.LocationOn
 @Composable
 fun MainScreen(
     mainViewModel: MainViewModel = viewModel(),
     onNavigateToCreatePost: () -> Unit,
     onPostClick: (Int) -> Unit,
     onLogoutClicked: () -> Unit,
+    onNavigateToMap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -47,8 +48,23 @@ fun MainScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToCreatePost) {
-                Icon(Icons.Default.Add, contentDescription = "Add post")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp), // Espacio entre los botones
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                FloatingActionButton(
+                    onClick = onNavigateToMap, // Usa la nueva acción de navegación
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer, // Color diferente para diferenciar
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
+                    Icon(Icons.Default.LocationOn, contentDescription = "Show map")
+                }
+
+
+                FloatingActionButton(onClick = onNavigateToCreatePost) {
+                    Icon(Icons.Default.Add, contentDescription = "Add post")
+                }
             }
         },
         modifier = modifier
