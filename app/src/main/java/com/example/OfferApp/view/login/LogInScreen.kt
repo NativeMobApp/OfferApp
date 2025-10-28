@@ -12,7 +12,7 @@ import com.example.OfferApp.viewmodel.AuthState
 @Composable
 fun LogInScreen(
     viewModel: AuthViewModel,
-    onSuccess: (String) -> Unit, // ← 🔹 ahora recibe el nombre de usuario
+    onSuccess: (uid: String, email: String) -> Unit, // Now passes both uid and email
     onRegisterClick: () -> Unit,
     onForgotClick: () -> Unit
 ) {
@@ -62,10 +62,10 @@ fun LogInScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        when (state) {
+        when (val S = state) {
             is AuthState.Loading -> CircularProgressIndicator()
-            is AuthState.Success -> onSuccess(email) // ← 🔹 pasa el email al NavGraph
-            is AuthState.Error -> Text("Error: ${(state as AuthState.Error).message}")
+            is AuthState.Success -> onSuccess(S.uid, S.email) // Pass both uid and email
+            is AuthState.Error -> Text("Error: ${S.message}")
             else -> {}
         }
     }

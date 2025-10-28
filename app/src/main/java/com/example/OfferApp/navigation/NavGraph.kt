@@ -19,7 +19,6 @@ import com.example.OfferApp.view.main.PostDetailScreen
 import com.example.OfferApp.view.register.RegisterScreen
 import com.example.OfferApp.viewmodel.AuthViewModel
 import com.example.OfferApp.viewmodel.MainViewModel
-import java.util.UUID
 
 // -----------------------------
 // RUTAS DEFINIDAS CON SEALED CLASS
@@ -29,8 +28,8 @@ sealed class Screen(val route: String) {
     object Register : Screen("register")
     object ForgotPassword : Screen("forgot_password")
 
-    object Main : Screen("main/{userName}") {
-        fun createRoute(userName: String) = "main/$userName"
+    object Main : Screen("main/{uid}/{email}") { // Route now accepts uid and email
+        fun createRoute(uid: String, email: String) = "main/$uid/$email"
     }
 
     object CreatePost : Screen("create_post")
@@ -42,11 +41,11 @@ sealed class Screen(val route: String) {
 // -----------------------------
 // FACTORY DEL MAINVIEWMODEL
 // -----------------------------
-class MainViewModelFactory(private val userName: String) : ViewModelProvider.Factory {
+// The factory now receives the real user data.
+class MainViewModelFactory(private val user: User) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            val user = User(uid = UUID.randomUUID().toString(), email = userName)
             return MainViewModel(user) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
@@ -64,8 +63,8 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
         composable(Screen.Login.route) {
             LogInScreen(
                 authViewModel,
-                onSuccess = { userName ->
-                    navController.navigate(Screen.Main.createRoute(userName)) {
+                onSuccess = { uid, email -> // Receives uid and email from the login screen
+                    navController.navigate(Screen.Main.createRoute(uid, email)) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
@@ -85,10 +84,15 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
         // -------- MAIN (pantalla principal con posts) --------
         composable(
             route = Screen.Main.route,
-            arguments = listOf(navArgument("userName") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("uid") { type = NavType.StringType },
+                navArgument("email") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
-            val userName = backStackEntry.arguments?.getString("userName") ?: ""
-            val mainViewModel: MainViewModel = viewModel(factory = MainViewModelFactory(userName))
+            val uid = backStackEntry.arguments?.getString("uid") ?: ""
+            val email = backStackEntry.arguments?.getString("email") ?: ""
+            val user = User(uid, email)
+            val mainViewModel: MainViewModel = viewModel(factory = MainViewModelFactory(user))
 
             MainScreen(
                 mainViewModel = mainViewModel,
@@ -96,11 +100,10 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                 onPostClick = { postIndex ->
                     navController.navigate(Screen.PostDetail.createRoute(postIndex))
                 },
-                        onLogoutClicked = {
+                onLogoutClicked = {
                     authViewModel.logout()
                     navController.navigate(Screen.Login.route) {
-
-                        popUpTo(Screen.Main.route) { inclusive = true }
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
                     }
                 }
             )
@@ -111,9 +114,11 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
             val parentEntry = remember(backStackEntry) {
                 navController.getBackStackEntry(Screen.Main.route)
             }
-            val userName = parentEntry.arguments?.getString("userName") ?: ""
+            val uid = parentEntry.arguments?.getString("uid") ?: ""
+            val email = parentEntry.arguments?.getString("email") ?: ""
+            val user = User(uid, email)
             val mainViewModel: MainViewModel =
-                viewModel(factory = MainViewModelFactory(userName), viewModelStoreOwner = parentEntry)
+                viewModel(factory = MainViewModelFactory(user), viewModelStoreOwner = parentEntry)
 
             CreatePostScreen(
                 mainViewModel = mainViewModel,
@@ -129,9 +134,11 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
             val parentEntry = remember(backStackEntry) {
                 navController.getBackStackEntry(Screen.Main.route)
             }
-            val userName = parentEntry.arguments?.getString("userName") ?: ""
+             val uid = parentEntry.arguments?.getString("uid") ?: ""
+            val email = parentEntry.arguments?.getString("email") ?: ""
+            val user = User(uid, email)
             val mainViewModel: MainViewModel =
-                viewModel(factory = MainViewModelFactory(userName), viewModelStoreOwner = parentEntry)
+                viewModel(factory = MainViewModelFactory(user), viewModelStoreOwner = parentEntry)
 
             val postId = backStackEntry.arguments?.getInt("postId")
             val post = postId?.let { mainViewModel.posts.getOrNull(it) }
@@ -148,7 +155,5 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                 onPasswordReset = { navController.popBackStack() }
             )
         }
-
-
     }
 }

@@ -2,7 +2,7 @@ package com.example.OfferApp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.OfferApp.data.AuthRepository
+import com.example.OfferApp.data.repository.AuthRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,8 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
-    data class Success(val userEmail: String?) : AuthState()
-    data class PasswordResetSuccess(val message: String) : AuthState() // Cambiado para ser más específico
+    // Success state now holds both uid and email
+    data class Success(val uid: String, val email: String) : AuthState()
+    data class PasswordResetSuccess(val message: String) : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -27,7 +28,13 @@ class AuthViewModel(
             _state.value = AuthState.Loading
             val result = repository.registerUser(email, password)
             _state.value = result.fold(
-                onSuccess = { AuthState.Success(it?.email) },
+                onSuccess = { user ->
+                    if (user?.uid != null && user.email != null) {
+                        AuthState.Success(user.uid, user.email!!)
+                    } else {
+                        AuthState.Error("Error de registro: no se pudo obtener la información del usuario.")
+                    }
+                },
                 onFailure = { AuthState.Error(it.message ?: "Error al registrar") }
             )
         }
@@ -38,7 +45,13 @@ class AuthViewModel(
             _state.value = AuthState.Loading
             val result = repository.loginUser(email, password)
             _state.value = result.fold(
-                onSuccess = { AuthState.Success(it?.email) },
+                onSuccess = { user ->
+                    if (user?.uid != null && user.email != null) {
+                        AuthState.Success(user.uid, user.email!!)
+                    } else {
+                        AuthState.Error("Error de inicio de sesión: no se pudo obtener la información del usuario.")
+                    }
+                },
                 onFailure = { AuthState.Error(it.message ?: "Error al iniciar sesión") }
             )
         }
@@ -48,7 +61,7 @@ class AuthViewModel(
             _state.value = AuthState.Loading
             val result = repository.resetPassword(email)
             _state.value = result.fold(
-                onSuccess = { AuthState.PasswordResetSuccess("Se envió un mail a $email") }, // Usando el nuevo estado
+                onSuccess = { AuthState.PasswordResetSuccess("Se envió un mail a $email") },
                 onFailure = { AuthState.Error(it.message ?: "Error al enviar mail") }
             )
         }

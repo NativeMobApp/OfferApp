@@ -1,4 +1,4 @@
-package com.example.OfferApp.data
+package com.example.OfferApp.data.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
