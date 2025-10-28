@@ -15,12 +15,14 @@ import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,8 +41,8 @@ fun PostDetailScreen(
     Scaffold(
         topBar = {
             Header(
-                query = mainViewModel.searchQuery, // Read query from ViewModel
-                onQueryChange = { mainViewModel.onSearchQueryChange(it) }, // Update query in ViewModel
+                query = mainViewModel.searchQuery,
+                onQueryChange = { mainViewModel.onSearchQueryChange(it) },
                 onBackClicked = onBackClicked,
                 onSesionClicked = onLogoutClicked
             )
@@ -60,6 +62,19 @@ fun PostDetailContent(
     post: Post,
     modifier: Modifier = Modifier
 ) {
+    val currentUserIsAuthor = mainViewModel.user.uid == post.user?.uid
+    val score = post.scores.sumOf { it.value }
+    val scoreColor = when {
+        score > 0 -> Color.Green
+        score < 0 -> Color.Red
+        else -> LocalContentColor.current
+    }
+
+    // Find the current user's vote to color the icon
+    val userVote = post.scores.find { it.userId == mainViewModel.user.uid }?.value
+    val likeColor = if (userVote == 1) Color.Green else LocalContentColor.current
+    val dislikeColor = if (userVote == -1) Color.Red else LocalContentColor.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -95,16 +110,17 @@ fun PostDetailContent(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = { mainViewModel.updatePostScore(post.id, 1) }) {
-                Icon(Icons.Default.ThumbUp, contentDescription = "Like")
+            IconButton(onClick = { mainViewModel.updatePostScore(post.id, 1) }, enabled = !currentUserIsAuthor) {
+                Icon(Icons.Default.ThumbUp, contentDescription = "Like", tint = likeColor)
             }
             Text(
-                text = "${post.scores.sumOf { it.value }}",
+                text = "$score",
+                color = scoreColor,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
-            IconButton(onClick = { mainViewModel.updatePostScore(post.id, -1) }) {
-                Icon(Icons.Default.ThumbDown, contentDescription = "Dislike")
+            IconButton(onClick = { mainViewModel.updatePostScore(post.id, -1) }, enabled = !currentUserIsAuthor) {
+                Icon(Icons.Default.ThumbDown, contentDescription = "Dislike", tint = dislikeColor)
             }
         }
     }

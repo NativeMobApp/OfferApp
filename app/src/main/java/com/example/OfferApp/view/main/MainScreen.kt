@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
@@ -28,7 +29,7 @@ import androidx.compose.material.icons.filled.LocationOn
 fun MainScreen(
     mainViewModel: MainViewModel = viewModel(),
     onNavigateToCreatePost: () -> Unit,
-    onPostClick: (String) -> Unit, // Now expects the post ID (String)
+    onPostClick: (String) -> Unit,
     onLogoutClicked: () -> Unit,
     onNavigateToMap: () -> Unit,
     modifier: Modifier = Modifier
@@ -40,15 +41,15 @@ fun MainScreen(
     Scaffold(
         topBar = {
             Header(
-                query = mainViewModel.searchQuery, // Read query from ViewModel
-                onQueryChange = { mainViewModel.onSearchQueryChange(it) }, // Update query in ViewModel
+                query = mainViewModel.searchQuery,
+                onQueryChange = { mainViewModel.onSearchQueryChange(it) },
                 onSesionClicked = onLogoutClicked,
                 onLogoClicked = { /* TODO: acción clic logo */ }
             )
         },
         floatingActionButton = {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp), // Espacio entre los botones
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FloatingActionButton(
@@ -95,6 +96,19 @@ fun MainScreen(
 
 @Composable
 fun PostItem(mainViewModel: MainViewModel, post: Post, onClick: () -> Unit) {
+    val currentUserIsAuthor = mainViewModel.user.uid == post.user?.uid
+    val score = post.scores.sumOf { it.value }
+    val scoreColor = when {
+        score > 0 -> Color.Green
+        score < 0 -> Color.Red
+        else -> LocalContentColor.current
+    }
+
+    // Find the current user's vote to color the icon
+    val userVote = post.scores.find { it.userId == mainViewModel.user.uid }?.value
+    val likeColor = if (userVote == 1) Color.Green else LocalContentColor.current
+    val dislikeColor = if (userVote == -1) Color.Red else LocalContentColor.current
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -117,7 +131,7 @@ fun PostItem(mainViewModel: MainViewModel, post: Post, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Ubicación: ${post.location}", // Changed from latitude to location
+                    text = "Ubicación: ${post.location}",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(modifier = Modifier.height(4.dp))
@@ -128,12 +142,12 @@ fun PostItem(mainViewModel: MainViewModel, post: Post, onClick: () -> Unit) {
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                IconButton(onClick = { mainViewModel.updatePostScore(post.id, 1) }) {
-                    Icon(Icons.Default.ThumbUp, contentDescription = "Like")
+                IconButton(onClick = { mainViewModel.updatePostScore(post.id, 1) }, enabled = !currentUserIsAuthor) {
+                    Icon(Icons.Default.ThumbUp, contentDescription = "Like", tint = likeColor)
                 }
-                Text(text = "${post.scores.sumOf { it.value }}")
-                IconButton(onClick = { mainViewModel.updatePostScore(post.id, -1) }) {
-                    Icon(Icons.Default.ThumbDown, contentDescription = "Dislike")
+                Text(text = "$score", color = scoreColor, fontWeight = FontWeight.Bold)
+                IconButton(onClick = { mainViewModel.updatePostScore(post.id, -1) }, enabled = !currentUserIsAuthor) {
+                    Icon(Icons.Default.ThumbDown, contentDescription = "Dislike", tint = dislikeColor)
                 }
             }
         }
