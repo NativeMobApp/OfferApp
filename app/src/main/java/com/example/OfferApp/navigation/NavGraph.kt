@@ -19,6 +19,7 @@ import com.example.OfferApp.view.main.PostDetailScreen
 import com.example.OfferApp.view.register.RegisterScreen
 import com.example.OfferApp.viewmodel.AuthViewModel
 import com.example.OfferApp.viewmodel.MainViewModel
+import com.example.OfferApp.view.main.MapScreen
 
 // -----------------------------
 // RUTAS DEFINIDAS CON SEALED CLASS
@@ -36,6 +37,7 @@ sealed class Screen(val route: String) {
     object PostDetail : Screen("post_detail/{postId}") {
         fun createRoute(postId: Int) = "post_detail/$postId"
     }
+    object Map : Screen("map")
 }
 
 // -----------------------------
@@ -105,6 +107,9 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(navController.graph.startDestinationId) { inclusive = true }
                     }
+                },
+                onNavigateToMap = {
+                    navController.navigate(Screen.Map.route)
                 }
             )
         }
@@ -153,6 +158,25 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
             ForgotPasswordScreen(
                 viewModel = authViewModel,
                 onPasswordReset = { navController.popBackStack() }
+            )
+        }
+
+          // -------- PANTALLA DE MAPA --------
+        composable(Screen.Map.route) { backStackEntry ->
+            val parentEntry = remember(backStackEntry) {
+                // Obtenemos el MainViewModel desde la ruta principal para acceder a los posts
+                navController.getBackStackEntry(Screen.Main.route)
+            }
+            // Correctly get user data and create the ViewModel
+            val uid = parentEntry.arguments?.getString("uid") ?: ""
+            val email = parentEntry.arguments?.getString("email") ?: ""
+            val user = User(uid, email)
+            val mainViewModel: MainViewModel =
+                viewModel(factory = MainViewModelFactory(user), viewModelStoreOwner = parentEntry)
+
+            MapScreen(
+                mainViewModel = mainViewModel,
+                onBackClicked = { navController.popBackStack() } // Para volver atrás
             )
         }
     }
