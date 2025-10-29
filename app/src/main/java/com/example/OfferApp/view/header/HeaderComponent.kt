@@ -17,6 +17,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.OfferApp.R
+import androidx.compose.material.icons.filled.Menu
 
 @Composable
 fun Header(
@@ -25,7 +26,9 @@ fun Header(
     query: String? = null,
     onQueryChange: ((String) -> Unit)? = null,
     onLogoClicked: (() -> Unit)? = null,
-    onBackClicked: (() -> Unit)? = null
+    onBackClicked: (() -> Unit)? = null,
+    onMenuClick: () -> Unit
+
 ) {
     Surface(
         modifier = modifier
@@ -38,8 +41,11 @@ fun Header(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            IconButton(onClick = onMenuClick) {
+                Icon(Icons.Default.Menu, contentDescription = "Menú", tint = Color.White)
+            }
             // Show back button if available, otherwise show logo (if available)
             if (onBackClicked != null) {
                 IconButton(onClick = onBackClicked) {

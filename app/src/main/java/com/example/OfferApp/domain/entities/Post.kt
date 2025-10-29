@@ -12,5 +12,7 @@ data class Post(
     var latitude: Double = 0.0,
     var longitude: Double = 0.0,
     var user: User? = null,
-    var scores: List<Score> = emptyList()
+    var scores: List<Score> = emptyList(),
+    //val category: Any,
+    val category: String = ""
 )

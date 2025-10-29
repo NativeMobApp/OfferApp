@@ -1,5 +1,6 @@
 package com.example.OfferApp.viewmodel
 
+import android.R
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -9,7 +10,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.OfferApp.data.repository.PostRepository
 import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.domain.entities.User
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 class MainViewModel(val user: User) : ViewModel() {
@@ -23,6 +23,7 @@ class MainViewModel(val user: User) : ViewModel() {
     // The search query is now part of the ViewModel's state
     var searchQuery by mutableStateOf("")
         private set
+    //private var selectedCategory: String? = null
 
     init {
         viewModelScope.launch {
@@ -34,13 +35,16 @@ class MainViewModel(val user: User) : ViewModel() {
         }
     }
 
-    suspend fun addPost(description: String, imageUri: Uri, location: String, latitude: Double, longitude: Double): Result<Unit> {
+    suspend fun addPost(description: String, imageUri: Uri, location: String, latitude: Double, longitude: Double, category: String): Result<Unit> {
         val post = Post(
             description = description,
             location = location,
             latitude = latitude,
             longitude = longitude,
-            user = user
+            user = user,
+            category = category,
+
+
         )
         return repository.addPost(post, imageUri)
     }
@@ -67,4 +71,14 @@ class MainViewModel(val user: User) : ViewModel() {
     fun getPostById(id: String): Post? {
         return originalPosts.find { it.id == id }
     }
+    fun filterByCategory(category: String) {
+        posts = if (category.isBlank()) {
+            originalPosts
+        } else {
+            originalPosts.filter {
+                it.category.equals(category, ignoreCase = true)
+            }
+        }
+    }
+
 }

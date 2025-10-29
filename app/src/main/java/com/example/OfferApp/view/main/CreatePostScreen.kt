@@ -46,7 +46,7 @@ fun CreatePostScreen(mainViewModel: MainViewModel, onPostCreated: () -> Unit) {
     var latitude by remember { mutableStateOf(0.0) }
     var longitude by remember { mutableStateOf(0.0) }
     var isLoading by remember { mutableStateOf(false) }
-
+    var category by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -95,6 +95,13 @@ fun CreatePostScreen(mainViewModel: MainViewModel, onPostCreated: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+               OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Categoría") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading
+                )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
@@ -128,7 +135,7 @@ fun CreatePostScreen(mainViewModel: MainViewModel, onPostCreated: () -> Unit) {
                         imageUri?.let { uri ->
                             scope.launch {
                                 isLoading = true
-                                val result = mainViewModel.addPost(description, uri, location, latitude, longitude)
+                                val result = mainViewModel.addPost(description, uri, location, latitude, longitude, category)
                                 if (result.isSuccess) {
                                     onPostCreated()
                                 } else {

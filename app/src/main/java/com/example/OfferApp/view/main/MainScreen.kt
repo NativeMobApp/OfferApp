@@ -1,6 +1,7 @@
 package com.example.OfferApp.view.main
 
 import android.content.res.Configuration
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +24,9 @@ import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.view.header.Header
 import com.example.OfferApp.viewmodel.MainViewModel
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
@@ -37,13 +41,65 @@ fun MainScreen(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     var selectedPost by remember { mutableStateOf<Post?>(null) }
 
-    Scaffold(
+    // Estado del Drawer
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    val categories = listOf(
+        "Alimentos", "Tecnología", "Moda", "Deportes", "Construcción",
+        "Animales", "Electrodomésticos", "Servicios", "Educación",
+        "Juguetes", "Vehículos", "Otros"
+    )
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier.width(280.dp) // tamaño cómodo de menú
+            ) {
+                Column(modifier = Modifier.fillMaxHeight()) {
+                    // Encabezado visual
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFD32F2F))
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Categorías",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Divider(color = Color.LightGray)
+
+                    categories.forEach { category ->
+                        Text(
+                            text = category,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    scope.launch { drawerState.close() }
+                                    mainViewModel.filterByCategory(category)
+                                }
+                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        }
+    )  { Scaffold(
         topBar = {
             Header(
                 query = mainViewModel.searchQuery, // Read query from ViewModel
                 onQueryChange = { mainViewModel.onSearchQueryChange(it) }, // Update query in ViewModel
                 onSesionClicked = onLogoutClicked,
-                onLogoClicked = { /* TODO: acción clic logo */ }
+                onLogoClicked = { /* TODO: acción clic logo */ },
+                onMenuClick = { scope.launch { drawerState.open() } } // 👈 abre el drawer
             )
         },
         floatingActionButton = {
@@ -90,6 +146,7 @@ fun MainScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -138,4 +195,14 @@ fun PostItem(mainViewModel: MainViewModel, post: Post, onClick: () -> Unit) {
             }
         }
     }
+}
+@Composable
+fun DrawerItem(text: String, onClick: () -> Unit) {
+    Text(
+        text,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(16.dp)
+    )
 }

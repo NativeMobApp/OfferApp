@@ -13,12 +13,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -28,22 +31,29 @@ import coil.compose.AsyncImage
 import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.view.header.Header
 import com.example.OfferApp.viewmodel.MainViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun PostDetailScreen(
     mainViewModel: MainViewModel,
     post: Post,
     onBackClicked: () -> Unit,
-    onLogoutClicked: () -> Unit
+    onLogoutClicked: () -> Unit,
+    scope: CoroutineScope = rememberCoroutineScope()
 ) {
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
     Scaffold(
         topBar = {
             Header(
                 query = mainViewModel.searchQuery, // Read query from ViewModel
                 onQueryChange = { mainViewModel.onSearchQueryChange(it) }, // Update query in ViewModel
                 onBackClicked = onBackClicked,
-                onSesionClicked = onLogoutClicked
-            )
+                onSesionClicked = onLogoutClicked,
+                onMenuClick = {
+                    scope.launch { drawerState.open() }
+                }            )
         }
     ) { paddingValues ->
         PostDetailContent(
