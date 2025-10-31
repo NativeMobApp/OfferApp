@@ -33,7 +33,7 @@ class MainViewModel(val user: User) : ViewModel() {
         viewModelScope.launch {
             repository.getPosts().collect { postList ->
                 originalPosts = postList
-                onSearchQueryChange(searchQuery) // Re-apply search on data change
+                onSearchQueryChange(searchQuery)
             }
         }
     }
@@ -53,12 +53,14 @@ class MainViewModel(val user: User) : ViewModel() {
         }
     }
 
-    suspend fun addPost(description: String, imageUri: Uri, location: String, latitude: Double, longitude: Double): Result<Unit> {
+    suspend fun addPost(description: String, imageUri: Uri, location: String, latitude: Double, longitude: Double, category: String, price: Double): Result<Unit> {
         val post = Post(
             description = description,
             location = location,
             latitude = latitude,
             longitude = longitude,
+            category = category,
+            price = price, // Price added
             user = user
         )
         return repository.addPost(post, imageUri)
@@ -79,6 +81,14 @@ class MainViewModel(val user: User) : ViewModel() {
                 it.description.contains(newQuery, ignoreCase = true) || 
                 it.location.contains(newQuery, ignoreCase = true)
             }
+        }
+    }
+    
+    fun filterByCategory(category: String) {
+        posts = if (category == "Todos") {
+            originalPosts
+        } else {
+            originalPosts.filter { it.category.equals(category, ignoreCase = true) }
         }
     }
 

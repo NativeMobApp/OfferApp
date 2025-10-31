@@ -1,5 +1,6 @@
 package com.example.OfferApp.view.main
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.*
@@ -21,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -73,12 +76,10 @@ fun PostDetailContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()) // The entire column is now scrollable
+            .verticalScroll(rememberScrollState())
     ) {
-        // --- Post Info Section ---
         PostInfoSection(mainViewModel, post)
 
-        // --- Comments Section ---
         Divider(modifier = Modifier.padding(top = 16.dp))
         Text(
             "Comentarios",
@@ -99,27 +100,28 @@ fun PostDetailContent(
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- Add Comment Section ---
         if (!currentUserIsAuthor) {
             AddCommentSection(
                 value = newCommentText,
                 onValueChange = { newCommentText = it },
                 onSend = {
                     mainViewModel.addComment(post.id, newCommentText)
-                    newCommentText = "" // Clear input
+                    newCommentText = ""
                 }
             )
         }
-        
-        Spacer(modifier = Modifier.height(16.dp)) // Extra space at the bottom
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
 @Composable
 private fun PostInfoSection(mainViewModel: MainViewModel, post: Post) {
+    val context = LocalContext.current
+    val sdf = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
     val currentUserIsAuthor = mainViewModel.user.uid == post.user?.uid
     val score = post.scores.sumOf { it.value }
     val scoreColor = when {
@@ -144,6 +146,19 @@ private fun PostInfoSection(mainViewModel: MainViewModel, post: Post) {
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = post.description, style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "$${post.price}",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (post.category.isNotBlank()) {
+            Text(text = "Categoría: ${post.category}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
         Text(text = "Ubicación: ${post.location}", style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(4.dp))
         Text(text = "Latitud: ${post.latitude}", style = MaterialTheme.typography.bodySmall)
@@ -155,7 +170,13 @@ private fun PostInfoSection(mainViewModel: MainViewModel, post: Post) {
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold
         )
+        post.timestamp?.let {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = "El: ${sdf.format(it)}", style = MaterialTheme.typography.bodySmall)
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
@@ -172,6 +193,30 @@ private fun PostInfoSection(mainViewModel: MainViewModel, post: Post) {
             )
             IconButton(onClick = { mainViewModel.updatePostScore(post.id, -1) }, enabled = !currentUserIsAuthor) {
                 Icon(Icons.Default.ThumbDown, contentDescription = "Dislike", tint = dislikeColor)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = {
+                val shareText = """
+                    ¡Mira esta oferta en OfferApp!
+                    
+                    ${post.description}
+                    Precio: $${post.price}
+                    Ubicación: ${post.location}
+                    
+                    ${post.imageUrl}
+                    
+                    ¡Descárgate OfferApp y no te pierdas ninguna oferta!
+                """.trimIndent()
+
+                val sendIntent: Intent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_TEXT, shareText)
+                    type = "text/plain"
+                }
+                val shareIntent = Intent.createChooser(sendIntent, null)
+                context.startActivity(shareIntent)
+            }) {
+                Icon(Icons.Default.Share, contentDescription = "Compartir")
             }
         }
     }

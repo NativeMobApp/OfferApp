@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -25,7 +26,8 @@ fun Header(
     query: String? = null,
     onQueryChange: ((String) -> Unit)? = null,
     onLogoClicked: (() -> Unit)? = null,
-    onBackClicked: (() -> Unit)? = null
+    onBackClicked: (() -> Unit)? = null,
+    onMenuClick: (() -> Unit)? = null
 ) {
     Surface(
         modifier = modifier
@@ -40,12 +42,18 @@ fun Header(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Show back button if available, otherwise show logo (if available)
-            if (onBackClicked != null) {
+            // Decide what to show at the start: Menu, Back Arrow, or Logo
+            if (onMenuClick != null) {
+                IconButton(onClick = onMenuClick) {
+                    Icon(Icons.Default.Menu, contentDescription = "Menú", tint = Color.White)
+                }
+            } else if (onBackClicked != null) {
                 IconButton(onClick = onBackClicked) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White)
                 }
-            } else if (onLogoClicked != null) {
+            }
+
+            if (onLogoClicked != null) {
                 Row(
                     modifier = Modifier
                         .clickable(onClick = onLogoClicked)
@@ -59,8 +67,7 @@ fun Header(
                     )
                 }
             }
-
-            // Show search bar if needed, otherwise show a spacer
+            
             if (query != null && onQueryChange != null) {
                 SearchBar(
                     query = query,
@@ -71,7 +78,6 @@ fun Header(
                 Spacer(modifier = Modifier.weight(1f))
             }
 
-            // Always show session button
             IconButton(onClick = onSesionClicked) {
                 Icon(
                     Icons.Filled.Person,
