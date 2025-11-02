@@ -6,19 +6,27 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.example.OfferApp.navigation.Screen
 import com.example.OfferApp.viewmodel.AuthViewModel
 import com.example.OfferApp.viewmodel.AuthState
 
 @Composable
 fun LogInScreen(
     viewModel: AuthViewModel,
-    onSuccess: (String) -> Unit, // ← 🔹 ahora recibe el nombre de usuario
-    onRegisterClick: () -> Unit,
-    onForgotClick: () -> Unit
+    navController: NavController
 ) {
     val state by viewModel.state.collectAsState()
-    var email by remember { mutableStateOf("") }
+    var identifier by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+    LaunchedEffect(state) {
+        if (state is AuthState.Success) {
+            navController.navigate(Screen.Main.route) {
+                popUpTo(Screen.Login.route) { inclusive = true }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -29,9 +37,9 @@ fun LogInScreen(
         Text("Iniciar Sesión", style = MaterialTheme.typography.headlineMedium)
 
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Correo") },
+            value = identifier,
+            onValueChange = { identifier = it },
+            label = { Text("Email o Nombre de usuario") },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -46,27 +54,27 @@ fun LogInScreen(
         Spacer(Modifier.height(16.dp))
 
         Button(
-            onClick = { viewModel.login(email, password) },
+            onClick = { viewModel.login(identifier, password) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Ingresar")
         }
 
-        TextButton(onClick = onRegisterClick, modifier = Modifier.fillMaxWidth()) {
+        TextButton(onClick = { navController.navigate(Screen.Register.route) }, modifier = Modifier.fillMaxWidth()) {
             Text("Crear cuenta")
         }
 
-        TextButton(onClick = onForgotClick, modifier = Modifier.fillMaxWidth()) {
+        TextButton(onClick = { navController.navigate(Screen.ForgotPassword.route) }, modifier = Modifier.fillMaxWidth()) {
             Text("Olvidé mi contraseña")
         }
 
         Spacer(Modifier.height(8.dp))
 
-        when (state) {
-            is AuthState.Loading -> CircularProgressIndicator()
-            is AuthState.Success -> onSuccess(email) // ← 🔹 pasa el email al NavGraph
-            is AuthState.Error -> Text("Error: ${(state as AuthState.Error).message}")
-            else -> {}
+        if (state is AuthState.Loading) {
+            CircularProgressIndicator()
+        }
+        if (state is AuthState.Error) {
+            Text("Error: ${(state as AuthState.Error).message}")
         }
     }
 }

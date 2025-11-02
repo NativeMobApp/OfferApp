@@ -1,6 +1,9 @@
 package com.example.OfferApp.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -13,133 +16,167 @@ import androidx.navigation.navArgument
 import com.example.OfferApp.domain.entities.User
 import com.example.OfferApp.view.forgotpassword.ForgotPasswordScreen
 import com.example.OfferApp.view.login.LogInScreen
-import com.example.OfferApp.view.main.CreatePostScreen
-import com.example.OfferApp.view.main.MainScreen
-import com.example.OfferApp.view.main.PostDetailScreen
+import com.example.OfferApp.view.main.*
+import com.example.OfferApp.view.register.RegisterScreen
 import com.example.OfferApp.viewmodel.AuthViewModel
+import com.example.OfferApp.viewmodel.AuthState
 import com.example.OfferApp.viewmodel.MainViewModel
-import java.util.UUID
 
-// -----------------------------
-// RUTAS DEFINIDAS CON SEALED CLASS
-// -----------------------------
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
     object ForgotPassword : Screen("forgot_password")
-
-    object Main : Screen("main/{userName}") {
-        fun createRoute(userName: String) = "main/$userName"
-    }
-
+    object Main : Screen("main")
     object CreatePost : Screen("create_post")
     object PostDetail : Screen("post_detail/{postId}") {
-        fun createRoute(postId: Int) = "post_detail/$postId"
+        fun createRoute(postId: String) = "post_detail/$postId"
     }
+    object Map : Screen("map")
+    object Profile : Screen("profile/{userId}") {
+        fun createRoute(userId: String) = "profile/$userId"
+    }
+    object MyProfile : Screen("my-profile") // For the current user's profile
 }
 
-// -----------------------------
-// FACTORY DEL MAINVIEWMODEL
-// -----------------------------
-class MainViewModelFactory(private val userName: String) : ViewModelProvider.Factory {
+class MainViewModelFactory(private val user: User) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            val user = User(uid = UUID.randomUUID().toString(), email = userName)
             return MainViewModel(user) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
 
-// -----------------------------
-// NAVEGACIÓN PRINCIPAL
-// -----------------------------
 @Composable
 fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
     NavHost(navController = navController, startDestination = Screen.Login.route) {
 
-        // -------- LOGIN --------
         composable(Screen.Login.route) {
-            LogInScreen(
-                authViewModel,
-                onSuccess = { userName ->
-                    navController.navigate(Screen.Main.createRoute(userName)) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
-                },
-                onRegisterClick = { navController.navigate(Screen.Register.route) },
-                onForgotClick = { navController.navigate(Screen.ForgotPassword.route) }
-            )
+            LogInScreen(authViewModel, navController)
         }
 
-        // -------- MAIN (pantalla principal con posts) --------
-        composable(
-            route = Screen.Main.route,
-            arguments = listOf(navArgument("userName") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val userName = backStackEntry.arguments?.getString("userName") ?: ""
-            val mainViewModel: MainViewModel = viewModel(factory = MainViewModelFactory(userName))
+        composable(Screen.Register.route) {
+            RegisterScreen(authViewModel) { navController.popBackStack() }
+        }
 
-            MainScreen(
-                mainViewModel = mainViewModel,
-                onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
-                onPostClick = { postIndex ->
-                    navController.navigate(Screen.PostDetail.createRoute(postIndex))
-                },
-                        onLogoutClicked = {
-                    authViewModel.logout()
+        composable(Screen.ForgotPassword.route) {
+            ForgotPasswordScreen(authViewModel) { navController.popBackStack() }
+        }
+
+        composable(Screen.Main.route) { backStackEntry ->
+            val authState by authViewModel.state.collectAsState()
+            val user = (authState as? AuthState.Success)?.user
+
+            if (user != null && user.uid.isNotBlank()) {
+                val mainViewModel: MainViewModel = viewModel(factory = MainViewModelFactory(user))
+                MainScreen(
+                    mainViewModel = mainViewModel,
+                    onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
+                    onNavigateToProfile = { navController.navigate(Screen.MyProfile.route) }, // Navigate to current user's profile
+                    onPostClick = { postId -> navController.navigate(Screen.PostDetail.createRoute(postId)) },
+                    onLogoutClicked = {
+                        authViewModel.logout()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    },
+                    onNavigateToMap = { navController.navigate(Screen.Map.route) }
+                )
+            } else {
+                LaunchedEffect(Unit) {
                     navController.navigate(Screen.Login.route) {
-
-                        popUpTo(Screen.Main.route) { inclusive = true }
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
                     }
                 }
+            }
+        }
+
+        val mainViewModelOwner: @Composable () -> MainViewModel = {
+            val parentEntry = remember { navController.getBackStackEntry(Screen.Main.route) }
+            viewModel(viewModelStoreOwner = parentEntry)
+        }
+
+        composable(Screen.MyProfile.route) {
+            val mainViewModel = mainViewModelOwner()
+            ProfileScreen(
+                mainViewModel = mainViewModel,
+                userId = mainViewModel.user.uid, // Pass the current user's ID
+                onBackClicked = { navController.popBackStack() },
+                onLogoutClicked = {
+                    authViewModel.logout()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    }
+                },
+                onPostClick = { postId -> navController.navigate(Screen.PostDetail.createRoute(postId)) },
+                onProfileClick = { userId -> navController.navigate(Screen.Profile.createRoute(userId)) }
             )
         }
 
-        // -------- CREAR POST --------
-        composable(Screen.CreatePost.route) { backStackEntry ->
-            val parentEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Screen.Main.route)
+        composable(
+            route = Screen.Profile.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val mainViewModel = mainViewModelOwner()
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                ProfileScreen(
+                    mainViewModel = mainViewModel,
+                    userId = userId,
+                    onBackClicked = { navController.popBackStack() },
+                    onLogoutClicked = {
+                        authViewModel.logout()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    },
+                    onPostClick = { postId -> navController.navigate(Screen.PostDetail.createRoute(postId)) },
+                    onProfileClick = { otherUserId -> navController.navigate(Screen.Profile.createRoute(otherUserId)) }
+                )
             }
-            val userName = parentEntry.arguments?.getString("userName") ?: ""
-            val mainViewModel: MainViewModel =
-                viewModel(factory = MainViewModelFactory(userName), viewModelStoreOwner = parentEntry)
+        }
 
+        composable(Screen.CreatePost.route) {
             CreatePostScreen(
-                mainViewModel = mainViewModel,
+                mainViewModel = mainViewModelOwner(),
                 onPostCreated = { navController.popBackStack() }
             )
         }
 
-        // -------- DETALLE DE POST --------
         composable(
             route = Screen.PostDetail.route,
-            arguments = listOf(navArgument("postId") { type = NavType.IntType })
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val parentEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Screen.Main.route)
-            }
-            val userName = parentEntry.arguments?.getString("userName") ?: ""
-            val mainViewModel: MainViewModel =
-                viewModel(factory = MainViewModelFactory(userName), viewModelStoreOwner = parentEntry)
-
-            val postId = backStackEntry.arguments?.getInt("postId")
-            val post = postId?.let { mainViewModel.posts.getOrNull(it) }
+            val mainViewModel = mainViewModelOwner()
+            val postId = backStackEntry.arguments?.getString("postId")
+            val post = postId?.let { mainViewModel.getPostById(it) }
 
             if (post != null) {
-                PostDetailScreen(post = post)
+                PostDetailScreen(
+                    mainViewModel = mainViewModel,
+                    post = post,
+                    onBackClicked = { navController.popBackStack() },
+                    onLogoutClicked = {
+                        authViewModel.logout()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    },
+                    onProfileClick = { userId -> navController.navigate(Screen.Profile.createRoute(userId)) }
+                )
             } else {
-                navController.popBackStack()
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
             }
         }
-        composable("forgot_password") {
-            ForgotPasswordScreen(
-                viewModel = authViewModel,
-                onPasswordReset = { navController.popBackStack() }
+
+        composable(Screen.Map.route) {
+            MapScreen(
+                mainViewModel = mainViewModelOwner(),
+                onBackClicked = { navController.popBackStack() }
             )
         }
-
-
     }
 }
