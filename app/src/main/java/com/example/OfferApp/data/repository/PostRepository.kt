@@ -7,6 +7,7 @@ import com.cloudinary.android.callback.UploadCallback
 import com.example.OfferApp.domain.entities.Comment
 import com.example.OfferApp.domain.entities.Post
 import com.example.OfferApp.domain.entities.Score
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import java.util.Date
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -80,6 +82,15 @@ class PostRepository {
                 }
                 transaction.update(postRef, "scores", newScores)
             }.await()
+
+            val updatedPost = postsCollection.document(postId).get().await().toObject(Post::class.java)
+            if (updatedPost != null) {
+                val totalScore = updatedPost.scores.sumOf { it.value }
+                if (totalScore < -15) {
+                    deletePost(postId)
+                }
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -116,7 +127,7 @@ class PostRepository {
     fun getCommentsByUser(userId: String): Flow<List<Comment>> {
         return callbackFlow {
             val listener = firestore.collectionGroup("comments")
-                .whereEqualTo("userId", userId) // Querying by the new simple field
+                .whereEqualTo("userId", userId)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .addSnapshotListener { snapshot, e ->
                     if (e != null) {
@@ -132,21 +143,30 @@ class PostRepository {
         }
     }
 
-    fun getPosts(): Flow<List<Post>> {
-        return callbackFlow {
-            val listener = postsCollection
-                .addSnapshotListener { snapshot, e ->
-                    if (e != null) {
-                        close(e)
-                        return@addSnapshotListener
-                    }
-                    if (snapshot != null) {
-                        val posts = snapshot.toObjects(Post::class.java)
-                        trySend(posts).isSuccess
-                    }
-                }
-            awaitClose { listener.remove() }
+    suspend fun getPosts(
+        lastVisiblePost: DocumentSnapshot? = null,
+        category: String? = null
+    ): Pair<List<Post>, DocumentSnapshot?> {
+        val limit = 10L
+        var query: Query = postsCollection
+
+        if (category != null && category != "Todos") {
+            query = query.whereEqualTo("category", category)
         }
+
+        query = query.orderBy("timestamp", Query.Direction.DESCENDING).limit(limit)
+
+        val finalQuery = if (lastVisiblePost != null) {
+            query.startAfter(lastVisiblePost)
+        } else {
+            query
+        }
+
+        val snapshot = finalQuery.get().await()
+        val posts = snapshot.toObjects(Post::class.java)
+        val newLastVisible = snapshot.documents.lastOrNull()
+
+        return Pair(posts, newLastVisible)
     }
 
     suspend fun deletePost(postId: String): Result<Unit> {
@@ -159,6 +179,26 @@ class PostRepository {
 
             // Then, delete the post itself
             postsCollection.document(postId).delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteExpiredPosts(): Result<Unit> {
+        return try {
+            val thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000L
+            val cutoffDate = Date(System.currentTimeMillis() - thirtyDaysInMillis)
+
+            val querySnapshot = postsCollection
+                .whereLessThan("timestamp", cutoffDate)
+                .get()
+                .await()
+
+            for (document in querySnapshot.documents) {
+                deletePost(document.id)
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

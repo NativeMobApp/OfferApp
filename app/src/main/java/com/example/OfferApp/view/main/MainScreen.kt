@@ -8,17 +8,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -32,7 +36,9 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,6 +66,8 @@ fun MainScreen(
         "Animales", "Electrodomésticos", "Servicios", "Educación",
         "Juguetes", "Vehículos", "Otros"
     )
+    val themeOptions = listOf("Claro", "Oscuro", "Automático")
+
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -71,30 +79,71 @@ fun MainScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFD32F2F))
+                            .background(MaterialTheme.colorScheme.primary)
                             .padding(vertical = 32.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "Categorías",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    HorizontalDivider(color = Color.LightGray)
-                    categories.forEach { category ->
-                        Text(
-                            text = category,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    mainViewModel.filterByCategory(category)
-                                    scope.launch { drawerState.close() }
-                                }
-                                .padding(horizontal = 20.dp, vertical = 14.dp),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                    LazyColumn {
+                        items(categories) { category ->
+                            val isSelected = mainViewModel.selectedCategory == category
+                            Text(
+                                text = category,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        mainViewModel.filterByCategory(category)
+                                        scope.launch { drawerState.close() }
+                                    }
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent)
+                                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+
+                        item {
+                            HorizontalDivider(color = Color.LightGray, modifier = Modifier.padding(vertical = 8.dp))
+                            Text(
+                                text = "Tema",
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        items(themeOptions) { theme ->
+                            val isSelected = when (theme) {
+                                "Claro" -> mainViewModel.isDarkTheme == false
+                                "Oscuro" -> mainViewModel.isDarkTheme == true
+                                "Automático" -> mainViewModel.isDarkTheme == null
+                                else -> false
+                            }
+
+                            Text(
+                                text = theme,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        when (theme) {
+                                            "Claro" -> mainViewModel.onThemeChange(false)
+                                            "Oscuro" -> mainViewModel.onThemeChange(true)
+                                            "Automático" -> mainViewModel.onThemeChange(null)
+                                        }
+                                        scope.launch { drawerState.close() }
+                                    }
+                                    .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent)
+                                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
                     }
                 }
             }
@@ -120,14 +169,16 @@ fun MainScreen(
                 Column {
                     FloatingActionButton(
                         onClick = onNavigateToCreatePost,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        containerColor = MaterialTheme.colorScheme.primary
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Crear Post")
+                        Icon(Icons.Default.Add, contentDescription = "Crear Post", tint = MaterialTheme.colorScheme.onPrimary)
                     }
                     FloatingActionButton(
-                        onClick = onNavigateToMap
+                        onClick = onNavigateToMap,
+                        containerColor = MaterialTheme.colorScheme.primary
                     ) {
-                        Icon(Icons.Default.LocationOn, contentDescription = "Ver en mapa")
+                        Icon(Icons.Default.LocationOn, contentDescription = "Ver en mapa", tint = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -156,20 +207,52 @@ fun MainScreen(
 
 @Composable
 fun PortraitLayout(mainViewModel: MainViewModel, onPostClick: (String) -> Unit) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    val listState = rememberLazyListState()
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        state = listState
+    ) {
         items(mainViewModel.posts) { post ->
             PostItem(mainViewModel = mainViewModel, post = post, onClick = { onPostClick(post.id) })
         }
+        if (mainViewModel.isLoading) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        text = "Cargando posts...",
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null && lastIndex >= mainViewModel.posts.size - 1) {
+                    mainViewModel.loadMorePosts()
+                }
+            }
     }
 }
 
 @Composable
 fun LandscapeLayout(mainViewModel: MainViewModel, onProfileClick: (String) -> Unit) {
+    val listState = rememberLazyListState()
     Row(Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxHeight()
-                .weight(0.4f)
+                .weight(0.4f),
+            state = listState
         ) {
             items(mainViewModel.posts) { post ->
                 val modifier = if (mainViewModel.selectedPostId == post.id) {
@@ -185,6 +268,23 @@ fun LandscapeLayout(mainViewModel: MainViewModel, onProfileClick: (String) -> Un
                     )
                 }
             }
+            if (mainViewModel.isLoading) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            text = "Cargando posts...",
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
+            }
         }
 
         Box(
@@ -198,11 +298,21 @@ fun LandscapeLayout(mainViewModel: MainViewModel, onProfileClick: (String) -> Un
                 PostDetailContent(
                     mainViewModel = mainViewModel,
                     post = selectedPost,
-                    onProfileClick = onProfileClick
+                    onProfileClick = onProfileClick,
+                    onBackClicked = { mainViewModel.selectPost("") }
                 )
             } else {
                 Text("Selecciona un post para ver su detalle", style = MaterialTheme.typography.bodyLarge)
             }
         }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null && lastIndex >= mainViewModel.posts.size - 1) {
+                    mainViewModel.loadMorePosts()
+                }
+            }
     }
 }

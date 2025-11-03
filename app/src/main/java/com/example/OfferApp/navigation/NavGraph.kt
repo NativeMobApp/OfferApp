@@ -8,12 +8,14 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.OfferApp.domain.entities.User
+import com.example.OfferApp.ui.theme.MyApplicationTheme
 import com.example.OfferApp.view.forgotpassword.ForgotPasswordScreen
 import com.example.OfferApp.view.login.LogInScreen
 import com.example.OfferApp.view.main.*
@@ -53,15 +55,28 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
     NavHost(navController = navController, startDestination = Screen.Login.route) {
 
         composable(Screen.Login.route) {
-            LogInScreen(authViewModel, navController)
+            MyApplicationTheme {
+                LogInScreen(authViewModel, navController)
+            }
         }
 
         composable(Screen.Register.route) {
-            RegisterScreen(authViewModel) { navController.popBackStack() }
+            MyApplicationTheme {
+                RegisterScreen(
+                    viewModel = authViewModel,
+                    onRegisterSuccess = { navController.popBackStack() },
+                    onNavigateToLogin = { navController.popBackStack() }
+                )
+            }
         }
 
         composable(Screen.ForgotPassword.route) {
-            ForgotPasswordScreen(authViewModel) { navController.popBackStack() }
+            MyApplicationTheme {
+                ForgotPasswordScreen(
+                    viewModel = authViewModel,
+                    onNavigateToLogin = { navController.popBackStack() }
+                )
+            }
         }
 
         composable(Screen.Main.route) { backStackEntry ->
@@ -70,19 +85,21 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
 
             if (user != null && user.uid.isNotBlank()) {
                 val mainViewModel: MainViewModel = viewModel(factory = MainViewModelFactory(user))
-                MainScreen(
-                    mainViewModel = mainViewModel,
-                    onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
-                    onNavigateToProfile = { navController.navigate(Screen.MyProfile.route) }, // Navigate to current user's profile
-                    onPostClick = { postId -> navController.navigate(Screen.PostDetail.createRoute(postId)) },
-                    onLogoutClicked = {
-                        authViewModel.logout()
-                        navController.navigate(Screen.Login.route) {
-                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                        }
-                    },
-                    onNavigateToMap = { navController.navigate(Screen.Map.route) }
-                )
+                MyApplicationTheme(useDarkTheme = mainViewModel.isDarkTheme) {
+                    MainScreen(
+                        mainViewModel = mainViewModel,
+                        onNavigateToCreatePost = { navController.navigate(Screen.CreatePost.route) },
+                        onNavigateToProfile = { navController.navigate(Screen.MyProfile.route) },
+                        onPostClick = { postId -> navController.navigate(Screen.PostDetail.createRoute(postId)) },
+                        onLogoutClicked = {
+                            authViewModel.logout()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        },
+                        onNavigateToMap = { navController.navigate(Screen.Map.route) }
+                    )
+                }
             } else {
                 LaunchedEffect(Unit) {
                     navController.navigate(Screen.Login.route) {
@@ -92,38 +109,17 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
             }
         }
 
-        val mainViewModelOwner: @Composable () -> MainViewModel = {
-            val parentEntry = remember { navController.getBackStackEntry(Screen.Main.route) }
+        val mainViewModelOwner: @Composable (NavBackStackEntry) -> MainViewModel = { entry ->
+            val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Main.route) }
             viewModel(viewModelStoreOwner = parentEntry)
         }
 
         composable(Screen.MyProfile.route) {
-            val mainViewModel = mainViewModelOwner()
-            ProfileScreen(
-                mainViewModel = mainViewModel,
-                userId = mainViewModel.user.uid, // Pass the current user's ID
-                onBackClicked = { navController.popBackStack() },
-                onLogoutClicked = {
-                    authViewModel.logout()
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                    }
-                },
-                onPostClick = { postId -> navController.navigate(Screen.PostDetail.createRoute(postId)) },
-                onProfileClick = { userId -> navController.navigate(Screen.Profile.createRoute(userId)) }
-            )
-        }
-
-        composable(
-            route = Screen.Profile.route,
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val mainViewModel = mainViewModelOwner()
-            val userId = backStackEntry.arguments?.getString("userId")
-            if (userId != null) {
+            val mainViewModel = mainViewModelOwner(it)
+            MyApplicationTheme(useDarkTheme = mainViewModel.isDarkTheme) {
                 ProfileScreen(
                     mainViewModel = mainViewModel,
-                    userId = userId,
+                    userId = mainViewModel.user.uid,
                     onBackClicked = { navController.popBackStack() },
                     onLogoutClicked = {
                         authViewModel.logout()
@@ -132,30 +128,45 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                         }
                     },
                     onPostClick = { postId -> navController.navigate(Screen.PostDetail.createRoute(postId)) },
-                    onProfileClick = { otherUserId -> navController.navigate(Screen.Profile.createRoute(otherUserId)) }
+                    onProfileClick = { userId -> navController.navigate(Screen.Profile.createRoute(userId)) }
                 )
             }
         }
 
-        composable(Screen.CreatePost.route) {
-            CreatePostScreen(
-                mainViewModel = mainViewModelOwner(),
-                onPostCreated = { navController.popBackStack() }
-            )
+        composable(
+            route = Screen.Profile.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val mainViewModel = mainViewModelOwner(backStackEntry)
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                MyApplicationTheme(useDarkTheme = mainViewModel.isDarkTheme) {
+                    ProfileScreen(
+                        mainViewModel = mainViewModel,
+                        userId = userId,
+                        onBackClicked = { navController.popBackStack() },
+                        onLogoutClicked = {
+                            authViewModel.logout()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        },
+                        onPostClick = { postId -> navController.navigate(Screen.PostDetail.createRoute(postId)) },
+                        onProfileClick = { otherUserId -> navController.navigate(Screen.Profile.createRoute(otherUserId)) }
+                    )
+                }
+            }
         }
 
-        composable(
-            route = Screen.PostDetail.route,
-            arguments = listOf(navArgument("postId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val mainViewModel = mainViewModelOwner()
-            val postId = backStackEntry.arguments?.getString("postId")
-            val post = postId?.let { mainViewModel.getPostById(it) }
-
-            if (post != null) {
-                PostDetailScreen(
+        composable(Screen.CreatePost.route) {
+            val mainViewModel = mainViewModelOwner(it)
+            MyApplicationTheme(useDarkTheme = mainViewModel.isDarkTheme) {
+                CreatePostScreen(
                     mainViewModel = mainViewModel,
-                    post = post,
+                    onPostCreated = {
+                        mainViewModel.refreshPosts()
+                        navController.popBackStack()
+                    },
                     onBackClicked = { navController.popBackStack() },
                     onLogoutClicked = {
                         authViewModel.logout()
@@ -163,8 +174,34 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
                             popUpTo(navController.graph.startDestinationId) { inclusive = true }
                         }
                     },
-                    onProfileClick = { userId -> navController.navigate(Screen.Profile.createRoute(userId)) }
+                    onProfileClick = { navController.navigate(Screen.MyProfile.route) }
                 )
+            }
+        }
+
+        composable(
+            route = Screen.PostDetail.route,
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val mainViewModel = mainViewModelOwner(backStackEntry)
+            val postId = backStackEntry.arguments?.getString("postId")
+            val post = postId?.let { mainViewModel.getPostById(it) }
+
+            if (post != null) {
+                MyApplicationTheme(useDarkTheme = mainViewModel.isDarkTheme) {
+                    PostDetailScreen(
+                        mainViewModel = mainViewModel,
+                        post = post,
+                        onBackClicked = { navController.popBackStack() },
+                        onLogoutClicked = {
+                            authViewModel.logout()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        },
+                        onProfileClick = { userId -> navController.navigate(Screen.Profile.createRoute(userId)) }
+                    )
+                }
             } else {
                 LaunchedEffect(Unit) {
                     navController.popBackStack()
@@ -173,10 +210,20 @@ fun NavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
         }
 
         composable(Screen.Map.route) {
-            MapScreen(
-                mainViewModel = mainViewModelOwner(),
-                onBackClicked = { navController.popBackStack() }
-            )
+            val mainViewModel = mainViewModelOwner(it)
+            MyApplicationTheme(useDarkTheme = mainViewModel.isDarkTheme) {
+                MapScreen(
+                    mainViewModel = mainViewModel,
+                    onBackClicked = { navController.popBackStack() },
+                    onLogoutClicked = {
+                        authViewModel.logout()
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    },
+                    onProfileClick = { navController.navigate(Screen.MyProfile.route) }
+                )
+            }
         }
     }
 }

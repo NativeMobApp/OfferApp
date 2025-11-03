@@ -91,7 +91,7 @@ class AuthRepository(
                     override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
 
                     override fun onSuccess(requestId: String, resultData: Map<*, *>) {
-                        val imageUrl = resultData["url"].toString()
+                        val imageUrl = resultData["secure_url"].toString()
                         if (continuation.isActive) {
                             continuation.resume(imageUrl)
                         }
@@ -158,6 +158,24 @@ class AuthRepository(
                 null
             }.await()
 
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addFavorite(userId: String, postId: String): Result<Unit> {
+        return try {
+            usersCollection.document(userId).update("favorites", FieldValue.arrayUnion(postId)).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeFavorite(userId: String, postId: String): Result<Unit> {
+        return try {
+            usersCollection.document(userId).update("favorites", FieldValue.arrayRemove(postId)).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

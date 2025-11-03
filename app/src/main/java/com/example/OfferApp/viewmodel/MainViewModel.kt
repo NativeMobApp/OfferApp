@@ -12,7 +12,9 @@ import com.example.OfferApp.data.repository.AuthRepository
 import com.example.OfferApp.data.repository.PostRepository
 import com.example.OfferApp.domain.entities.Comment
 import com.example.OfferApp.domain.entities.Post
+import com.example.OfferApp.domain.entities.Score
 import com.example.OfferApp.domain.entities.User
+import com.google.firebase.firestore.DocumentSnapshot
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +33,7 @@ class MainViewModel(initialUser: User) : ViewModel() {
     var posts by mutableStateOf<List<Post>>(emptyList())
         private set
 
-    private var originalPosts by mutableStateOf<List<Post>>(emptyList())
+    private var allPosts by mutableStateOf<List<Post>>(emptyList())
 
     var searchQuery by mutableStateOf("")
         private set
@@ -42,14 +44,20 @@ class MainViewModel(initialUser: User) : ViewModel() {
     var selectedFeedTab by mutableStateOf(0)
         private set
 
-    // <-- CAMBIO: ID del post seleccionado para la vista detalle en horizontal
+    private var lastVisiblePost by mutableStateOf<DocumentSnapshot?>(null)
+    var isLoading by mutableStateOf(false)
+        private set
+    private var allPostsLoaded by mutableStateOf(false)
+
     var selectedPostId by mutableStateOf<String?>(null)
         private set
 
-    // <-- CAMBIO: Post completo derivado del ID seleccionado
+    var isDarkTheme by mutableStateOf<Boolean?>(null)
+        private set
+
     val selectedPost by derivedStateOf {
         selectedPostId?.let { id ->
-            originalPosts.find { it.id == id }
+            allPosts.find { it.id == id }
         }
     }
 
@@ -68,16 +76,18 @@ class MainViewModel(initialUser: User) : ViewModel() {
     private var commentsJob: Job? = null
 
     val myPosts: List<Post> by derivedStateOf {
-        originalPosts.filter { it.user?.uid == this@MainViewModel.user.uid }
+        allPosts.filter { it.user?.uid == this@MainViewModel.user.uid }
+    }
+
+    val favoritePosts: List<Post> by derivedStateOf {
+        allPosts.filter { post -> user.favorites.contains(post.id) }
     }
 
     init {
         viewModelScope.launch {
-            postRepository.getPosts().collect { postList ->
-                originalPosts = postList
-                applyFilters()
-            }
+            postRepository.deleteExpiredPosts()
         }
+        refreshPosts() // Initial load
         viewModelScope.launch {
             authRepository.getUser(initialUser.uid)?.let { fetchedUser ->
                 this@MainViewModel.user = fetchedUser
@@ -90,10 +100,79 @@ class MainViewModel(initialUser: User) : ViewModel() {
         }
     }
 
-    // <-- CAMBIO: Nueva función para seleccionar/deseleccionar un post
+    fun onThemeChange(isDark: Boolean?){
+        isDarkTheme = isDark
+    }
+
+    fun loadMorePosts() {
+        if (isLoading || allPostsLoaded) return
+
+        viewModelScope.launch {
+            isLoading = true
+            try {
+                val (newPosts, newLastVisible) = postRepository.getPosts(
+                    lastVisiblePost = lastVisiblePost,
+                    category = selectedCategory
+                )
+                if (newPosts.isNotEmpty()) {
+                    allPosts = allPosts + newPosts
+                    lastVisiblePost = newLastVisible
+                    applyFilters()
+                } else {
+                    allPostsLoaded = true
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error loading more posts", e)
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    fun refreshPosts() {
+        posts = emptyList()
+        allPosts = emptyList()
+        lastVisiblePost = null
+        allPostsLoaded = false
+        loadMorePosts()
+    }
+
+    fun loadAllPostsForProfile() {
+        if (isLoading) return
+
+        viewModelScope.launch {
+            isLoading = true
+            val tempAllPosts = mutableListOf<Post>()
+            var lastVisible: DocumentSnapshot? = null
+            var morePostsExist = true
+
+            try {
+                while(morePostsExist) {
+                    val (newPosts, newLastVisible) = postRepository.getPosts(
+                        lastVisiblePost = lastVisible,
+                        category = "Todos"
+                    )
+
+                    if (newPosts.isNotEmpty()) {
+                        tempAllPosts.addAll(newPosts)
+                        lastVisible = newLastVisible
+                    } else {
+                        morePostsExist = false
+                    }
+                }
+                allPosts = tempAllPosts
+                applyFilters()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error loading all posts for profile", e)
+            } finally {
+                isLoading = false
+                allPostsLoaded = true
+            }
+        }
+    }
+
     fun selectPost(postId: String?) {
         selectedPostId = postId
-        // Si estamos en modo detalle, cargamos sus comentarios
         if (postId != null) {
             loadComments(postId)
         }
@@ -101,7 +180,7 @@ class MainViewModel(initialUser: User) : ViewModel() {
 
     fun onFeedTabSelected(tabIndex: Int) {
         selectedFeedTab = tabIndex
-        applyFilters() // Re-aplicar filtros cada vez que se cambia la pestaña
+        applyFilters()
     }
 
     fun loadUserProfile(userId: String) {
@@ -159,7 +238,7 @@ class MainViewModel(initialUser: User) : ViewModel() {
     suspend fun refreshCurrentUser() {
         try {
             authRepository.getUser(user.uid)?.let { user = it }
-            applyFilters()
+            applyFilters() // Re-apply filters as following list might have changed
         } catch (e: Exception) {
             Log.e("MainViewModel", "Failed to refresh current user", e)
         }
@@ -196,7 +275,7 @@ class MainViewModel(initialUser: User) : ViewModel() {
     }
 
     fun getPostsByUser(userId: String): List<Post> {
-        return originalPosts.filter { it.user?.uid == userId }
+        return allPosts.filter { it.user?.uid == userId }
     }
 
     fun updateProfileImage(imageUri: Uri) {
@@ -240,9 +319,67 @@ class MainViewModel(initialUser: User) : ViewModel() {
         return postRepository.addPost(post, imageUri)
     }
 
-    fun updatePostScore(postId: String, value: Int) {
+    fun toggleFavorite(postId: String) {
+        val isCurrentlyFavorite = user.favorites.contains(postId)
+
+        val updatedFavorites = if (isCurrentlyFavorite) {
+            user.favorites - postId
+        } else {
+            user.favorites + postId
+        }
+        user = user.copy(favorites = updatedFavorites)
+
         viewModelScope.launch {
-            postRepository.updatePostScore(postId, this@MainViewModel.user.uid, value)
+            val result = if (isCurrentlyFavorite) {
+                authRepository.removeFavorite(user.uid, postId)
+            } else {
+                authRepository.addFavorite(user.uid, postId)
+            }
+
+            if (result.isFailure) {
+                val rolledBackFavorites = if (isCurrentlyFavorite) {
+                    user.favorites + postId
+                } else {
+                    user.favorites - postId
+                }
+                user = user.copy(favorites = rolledBackFavorites)
+                Log.e("MainViewModel", "Failed to toggle favorite status for post $postId")
+            }
+        }
+    }
+
+    fun updatePostScore(postId: String, value: Int) {
+        val postIndex = allPosts.indexOfFirst { it.id == postId }
+        if (postIndex == -1) return
+
+        val originalPost = allPosts[postIndex]
+        val userId = user.uid
+
+        val newScores = originalPost.scores.toMutableList()
+        val existingScore = originalPost.scores.find { it.userId == userId }
+
+        if (existingScore != null) {
+            newScores.removeAll { it.userId == userId }
+            if (existingScore.value != value) {
+                newScores.add(Score(userId, value))
+            }
+        } else {
+            newScores.add(Score(userId, value))
+        }
+
+        val updatedPost = originalPost.copy(scores = newScores)
+
+        allPosts = allPosts.toMutableList().also { it[postIndex] = updatedPost }
+        applyFilters()
+
+        viewModelScope.launch {
+            try {
+                postRepository.updatePostScore(postId, user.uid, value)
+            } catch (e: Exception) {
+                allPosts = allPosts.toMutableList().also { it[postIndex] = originalPost }
+                applyFilters()
+                Log.e("MainViewModel", "Failed to update post score, rolled back UI.", e)
+            }
         }
     }
 
@@ -253,26 +390,22 @@ class MainViewModel(initialUser: User) : ViewModel() {
 
     fun filterByCategory(category: String) {
         selectedCategory = category
-        applyFilters()
+        refreshPosts() // Reload from server with the new category filter
     }
 
     private fun applyFilters() {
-        val basePosts = if (selectedFeedTab == 0) {
-            originalPosts
+        val basePosts = if (selectedFeedTab == 1) {
+            // "Following" tab: Filter client-side
+            allPosts.filter { post -> user.following.contains(post.user?.uid) }
         } else {
-            originalPosts.filter { post -> user.following.contains(post.user?.uid) }
-        }
-
-        val filteredByCategory = if (selectedCategory == "Todos") {
-            basePosts
-        } else {
-            basePosts.filter { it.category.equals(selectedCategory, ignoreCase = true) }
+            // "All" tab: Use the list as is (already filtered by category on server)
+            allPosts
         }
 
         posts = if (searchQuery.isBlank()) {
-            filteredByCategory
+            basePosts
         } else {
-            filteredByCategory.filter {
+            basePosts.filter {
                 it.description.contains(searchQuery, ignoreCase = true) ||
                         it.location.contains(searchQuery, ignoreCase = true)
             }
@@ -280,7 +413,7 @@ class MainViewModel(initialUser: User) : ViewModel() {
     }
 
     fun getPostById(id: String): Post? {
-        return originalPosts.find { it.id == id }
+        return allPosts.find { it.id == id }
     }
 
     fun deletePost(postId: String) {
