@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.launch
 
 class MainViewModel(initialUser: User) : ViewModel() {
+
     private val postRepository = PostRepository()
     private val authRepository = AuthRepository()
 
@@ -42,6 +43,9 @@ class MainViewModel(initialUser: User) : ViewModel() {
         private set
 
     var selectedFeedTab by mutableStateOf(0)
+        private set
+
+    var currentSortOption by mutableStateOf("Fecha (más recientes)")
         private set
 
     private var lastVisiblePost by mutableStateOf<DocumentSnapshot?>(null)
@@ -85,7 +89,7 @@ class MainViewModel(initialUser: User) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            postRepository.deleteExpiredPosts()
+            postRepository.expireOldPosts() // Change to expire instead of delete
         }
         refreshPosts() // Initial load
         viewModelScope.launch {
@@ -306,7 +310,7 @@ class MainViewModel(initialUser: User) : ViewModel() {
         }
     }
 
-    suspend fun addPost(description: String, imageUri: Uri, location: String, latitude: Double, longitude: Double, category: String, price: Double): Result<Unit> {
+    suspend fun addPost(description: String, imageUri: Uri, location: String, latitude: Double, longitude: Double, category: String, price: Double, discountPrice: Double, store: String): Result<Unit> {
         val post = Post(
             description = description,
             location = location,
@@ -314,7 +318,9 @@ class MainViewModel(initialUser: User) : ViewModel() {
             longitude = longitude,
             category = category,
             price = price,
-            user = this@MainViewModel.user
+            discountPrice = discountPrice,
+            user = this@MainViewModel.user,
+            store = store
         )
         return postRepository.addPost(post, imageUri)
     }
@@ -353,8 +359,9 @@ class MainViewModel(initialUser: User) : ViewModel() {
         if (postIndex == -1) return
 
         val originalPost = allPosts[postIndex]
-        val userId = user.uid
+        if (originalPost.status != "activa") return
 
+        val userId = user.uid
         val newScores = originalPost.scores.toMutableList()
         val existingScore = originalPost.scores.find { it.userId == userId }
 
@@ -367,15 +374,33 @@ class MainViewModel(initialUser: User) : ViewModel() {
             newScores.add(Score(userId, value))
         }
 
-        val updatedPost = originalPost.copy(scores = newScores)
+        val totalScore = newScores.sumOf { it.value }
+        val newStatus = if (totalScore < -15) "vencida" else originalPost.status
+
+        val updatedPost = originalPost.copy(scores = newScores, status = newStatus)
 
         allPosts = allPosts.toMutableList().also { it[postIndex] = updatedPost }
         applyFilters()
 
         viewModelScope.launch {
             try {
-                postRepository.updatePostScore(postId, user.uid, value)
+                postRepository.updatePostScore(postId, user.uid, value).getOrThrow() // Use getOrThrow to catch exceptions
+
+                // After the repository call, we should refresh the post from the source of truth
+                val refreshedPost = postRepository.getPostById(postId)
+                if (refreshedPost != null) {
+                    val finalPostIndex = allPosts.indexOfFirst { it.id == postId }
+                    if (finalPostIndex != -1) {
+                        allPosts = allPosts.toMutableList().also { it[finalPostIndex] = refreshedPost }
+                        applyFilters()
+                    }
+                } else {
+                    // Post might have been deleted, so remove it from the list
+                    allPosts = allPosts.filter { it.id != postId }
+                    applyFilters()
+                }
             } catch (e: Exception) {
+                // If the operation failed, roll back the UI changes
                 allPosts = allPosts.toMutableList().also { it[postIndex] = originalPost }
                 applyFilters()
                 Log.e("MainViewModel", "Failed to update post score, rolled back UI.", e)
@@ -383,8 +408,14 @@ class MainViewModel(initialUser: User) : ViewModel() {
         }
     }
 
+
     fun onSearchQueryChange(newQuery: String) {
         searchQuery = newQuery
+        applyFilters()
+    }
+
+    fun onSortOptionChange(option: String) {
+        currentSortOption = option
         applyFilters()
     }
 
@@ -394,23 +425,33 @@ class MainViewModel(initialUser: User) : ViewModel() {
     }
 
     private fun applyFilters() {
-        val basePosts = if (selectedFeedTab == 1) {
-            // "Following" tab: Filter client-side
+        // 1️⃣ Filter by feed ("Todos" or "Siguiendo")
+        var filteredPosts = if (selectedFeedTab == 1) {
             allPosts.filter { post -> user.following.contains(post.user?.uid) }
         } else {
-            // "All" tab: Use the list as is (already filtered by category on server)
             allPosts
         }
 
-        posts = if (searchQuery.isBlank()) {
-            basePosts
-        } else {
-            basePosts.filter {
+        // 2️⃣ Apply local search
+        if (searchQuery.isNotBlank()) {
+            filteredPosts = filteredPosts.filter {
                 it.description.contains(searchQuery, ignoreCase = true) ||
                         it.location.contains(searchQuery, ignoreCase = true)
             }
         }
+
+        // 3️⃣ Apply local sorting
+        filteredPosts = when (currentSortOption) {
+            "Puntaje (mayor a menor)" -> filteredPosts.sortedByDescending { it.scores.sumOf { s -> s.value } }
+            "Puntaje (menor a mayor)" -> filteredPosts.sortedBy { it.scores.sumOf { s -> s.value } }
+            "Precio (mayor a menor)" -> filteredPosts.sortedByDescending { it.price }
+            "Precio (menor a mayor)" -> filteredPosts.sortedBy { it.price }
+            else -> filteredPosts.sortedByDescending { it.timestamp }
+        }
+
+        posts = filteredPosts
     }
+
 
     fun getPostById(id: String): Post? {
         return allPosts.find { it.id == id }
@@ -418,7 +459,56 @@ class MainViewModel(initialUser: User) : ViewModel() {
 
     fun deletePost(postId: String) {
         viewModelScope.launch {
-            postRepository.deletePost(postId)
+            try {
+                postRepository.deletePost(postId)
+                // On successful deletion, update the local state to refresh the UI
+                allPosts = allPosts.filterNot { it.id == postId }
+                applyFilters()
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Error deleting post $postId", e)
+            }
+        }
+    }
+
+    fun updatePostStatus(postId: String, newStatus: String) {
+        val postIndex = allPosts.indexOfFirst { it.id == postId }
+        if (postIndex != -1) {
+            val originalPost = allPosts[postIndex]
+            val updatedPost = originalPost.copy(status = newStatus)
+            allPosts = allPosts.toMutableList().also { it[postIndex] = updatedPost }
+            applyFilters()
+
+            viewModelScope.launch {
+                val result = postRepository.updatePostStatus(postId, newStatus)
+                if (result.isFailure) {
+                    allPosts = allPosts.toMutableList().also { it[postIndex] = originalPost }
+                    applyFilters()
+                }
+            }
+        }
+    }
+
+    fun updatePostDetails(postId: String, description: String, price: Double, discountPrice: Double, category: String, store: String) {
+        val postIndex = allPosts.indexOfFirst { it.id == postId }
+        if (postIndex != -1) {
+            val originalPost = allPosts[postIndex]
+            val updatedPost = originalPost.copy(
+                description = description,
+                price = price,
+                discountPrice = discountPrice,
+                category = category,
+                store = store
+            )
+            allPosts = allPosts.toMutableList().also { it[postIndex] = updatedPost }
+            applyFilters()
+
+            viewModelScope.launch {
+                val result = postRepository.updatePostDetails(postId, description, price, discountPrice, category, store)
+                if (result.isFailure) {
+                    allPosts = allPosts.toMutableList().also { it[postIndex] = originalPost }
+                    applyFilters()
+                }
+            }
         }
     }
 }

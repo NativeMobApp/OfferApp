@@ -53,6 +53,8 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx:25.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1") // Added for .await()
 
+    //Firebase messaging
+    implementation("com.google.firebase:firebase-messaging:25.0.1")
     // Cloudinary
     implementation("com.cloudinary:cloudinary-android:2.4.0")
 
@@ -69,6 +71,8 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
     implementation("androidx.preference:preference-ktx:1.2.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
 
     //openstreetmap
     implementation("org.osmdroid:osmdroid-android:6.1.18")
@@ -83,6 +87,7 @@ dependencies {
     // Other
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation(libs.androidx.material3)
 
     // Testing
     testImplementation(libs.junit)
