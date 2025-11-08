@@ -178,7 +178,7 @@ class AuthRepository(
         }
     }
     suspend fun updateFCMToken(userId: String, token: String): Result<Unit> {
-        // Redirige la llamada al servicio
+
         return authService.updateFCMToken(userId, token)
     }
     suspend fun removeFavorite(userId: String, postId: String): Result<Unit> {

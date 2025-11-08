@@ -198,14 +198,9 @@ fun MainScreen(
                             "Precio (mayor a menor)",
                             "Precio (menor a mayor)"
                         ),
-                        onOptionSelected = mainViewModel::setSortOption
+                        selectedOption = mainViewModel.currentSortOption,
+                        onOptionSelected = mainViewModel::onSortOptionChange
                     )
-/*
-                    DropdownMenuFilter(
-                        label = "Estado",
-                        options = listOf("Todas", "activa", "baja"),
-                        onOptionSelected = mainViewModel::setStatusFilter
-                    )*/
                 }
                 val tabTitles = listOf("Todos", "Siguiendo")
                 TabRow(selectedTabIndex = mainViewModel.selectedFeedTab) {

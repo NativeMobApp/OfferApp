@@ -24,9 +24,6 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.launch
 
 class MainViewModel(initialUser: User) : ViewModel() {
-    private var currentSortOption: String = "Fecha (más recientes)"
-    private var currentStatusFilter: String = "Todas"
-    private var currentCategoryFilter: String = "Todos"
 
     private val postRepository = PostRepository()
     private val authRepository = AuthRepository()
@@ -46,6 +43,9 @@ class MainViewModel(initialUser: User) : ViewModel() {
         private set
 
     var selectedFeedTab by mutableStateOf(0)
+        private set
+
+    var currentSortOption by mutableStateOf("Fecha (más recientes)")
         private set
 
     private var lastVisiblePost by mutableStateOf<DocumentSnapshot?>(null)
@@ -414,20 +414,25 @@ class MainViewModel(initialUser: User) : ViewModel() {
         applyFilters()
     }
 
+    fun onSortOptionChange(option: String) {
+        currentSortOption = option
+        applyFilters()
+    }
+
     fun filterByCategory(category: String) {
         selectedCategory = category
         refreshPosts() // Reload from server with the new category filter
     }
 
     private fun applyFilters() {
-        // 1️⃣ Filtramos por feed ("Todos" o "Siguiendo")
+        // 1️⃣ Filter by feed ("Todos" or "Siguiendo")
         var filteredPosts = if (selectedFeedTab == 1) {
             allPosts.filter { post -> user.following.contains(post.user?.uid) }
         } else {
             allPosts
         }
 
-        // 2️⃣ Aplicamos búsqueda local
+        // 2️⃣ Apply local search
         if (searchQuery.isNotBlank()) {
             filteredPosts = filteredPosts.filter {
                 it.description.contains(searchQuery, ignoreCase = true) ||
@@ -435,7 +440,7 @@ class MainViewModel(initialUser: User) : ViewModel() {
             }
         }
 
-        // 3️⃣ Aplicamos ordenamientos locales
+        // 3️⃣ Apply local sorting
         filteredPosts = when (currentSortOption) {
             "Puntaje (mayor a menor)" -> filteredPosts.sortedByDescending { it.scores.sumOf { s -> s.value } }
             "Puntaje (menor a mayor)" -> filteredPosts.sortedBy { it.scores.sumOf { s -> s.value } }
@@ -505,30 +510,5 @@ class MainViewModel(initialUser: User) : ViewModel() {
                 }
             }
         }
-    }
-    fun setSortOption(option: String) {
-        currentSortOption = option
-        viewModelScope.launch { applyFiltersAndSort() }
-    }
-
-    fun setStatusFilter(option: String) {
-        currentStatusFilter = option
-        viewModelScope.launch { applyFiltersAndSort() }
-    }
-
-    fun setCategoryFilter(category: String) {
-        currentCategoryFilter = category
-        viewModelScope.launch { applyFiltersAndSort() }
-    }
-
-    suspend fun applyFiltersAndSort() {
-        isLoading = true
-        val result = postRepository.getFilteredPosts(
-            status = currentStatusFilter,
-            category = currentCategoryFilter,
-            sortOption = currentSortOption
-        )
-        posts = result
-        isLoading = false
     }
 }
